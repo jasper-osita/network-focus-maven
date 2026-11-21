@@ -56,3 +56,41 @@ def make_roster(tmp_path):
                 csv.writer(f).writerows(table)
         return path
     return _make
+
+
+def build_roster_dict(week_of="2026-11-23", as_of="2026-11-21"):
+    from nf_core.checks import flags_for
+    from nf_core.goals import parse_goals
+    from nf_core.roster import read_roster
+    contacts, _ = read_roster(SAMPLE)
+    return {"source": {"path": str(SAMPLE), "file_name": SAMPLE.name, "sha256": "ab" * 32,
+                       "as_of": as_of, "week_of": week_of},
+            "goals": [g.to_dict() for g in parse_goals(TEMPLATE_GOALS.read_text())],
+            "contacts": [{**c.to_dict(), "text": c.text(), "flags": flags_for(c)} for c in contacts]}
+
+
+def build_warnings():
+    from nf_core.checks import run_checks
+    from nf_core.goals import parse_goals
+    from nf_core.issues import Issue
+    from nf_core.roster import read_roster
+    contacts, _ = read_roster(SAMPLE)
+    issues = run_checks(contacts, parse_goals(TEMPLATE_GOALS.read_text()))
+    stale = Issue("STALE_FILE", "warn", "This spreadsheet's file date is Nov 1, 2026 (22 days ago).")
+    return {"warnings": [i.to_dict() for i in [stale, *issues]]}
+
+
+@pytest.fixture
+def roster_dict():
+    return build_roster_dict()
+
+
+@pytest.fixture
+def warnings_dict():
+    return build_warnings()
+
+
+@pytest.fixture
+def brief_dict():
+    import json
+    return json.loads((Path(__file__).parent / "fixtures" / "valid_brief.json").read_text())
