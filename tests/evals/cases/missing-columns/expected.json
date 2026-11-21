@@ -1,0 +1,7 @@
+{
+  "must_include": [],
+  "must_exclude": [],
+  "must_warn": [],
+  "must_not_warn": [],
+  "must_block": "MISSING_COLUMNS"
+}

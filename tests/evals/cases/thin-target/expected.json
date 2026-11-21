@@ -1,0 +1,9 @@
+{
+  "must_include": [],
+  "must_exclude": [],
+  "must_warn": [],
+  "must_not_warn": [
+    "GOAL_ORG_MISSING"
+  ],
+  "must_block": null
+}

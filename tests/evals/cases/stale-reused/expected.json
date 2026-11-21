@@ -1,0 +1,10 @@
+{
+  "must_include": [],
+  "must_exclude": [],
+  "must_warn": [
+    "STALE_FILE",
+    "REUSED_FILE"
+  ],
+  "must_not_warn": [],
+  "must_block": null
+}

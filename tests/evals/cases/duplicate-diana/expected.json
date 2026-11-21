@@ -1,0 +1,9 @@
+{
+  "must_include": [],
+  "must_exclude": [],
+  "must_warn": [
+    "DUPLICATE_NAME"
+  ],
+  "must_not_warn": [],
+  "must_block": null
+}
