@@ -20,6 +20,11 @@ def tool(name, **inp):
 
 
 emit({"type": "system", "subtype": "init", "plugins": [{"name": "network-focus"}]})
+if mode == "hang":
+    time.sleep(30)
+if mode == "weird":
+    print("[1, 2]", flush=True)
+    print('"just a string"', flush=True)
 if mode == "signed_out":
     emit({"type": "result", "subtype": "error", "is_error": True, "result": "Invalid API key · Please run /login"})
     sys.exit(1)

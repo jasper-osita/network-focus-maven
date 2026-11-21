@@ -165,3 +165,16 @@ def test_cli_exit_codes(tmp_path, brief, roster):
     g, b = run(good), run(bad)
     assert g.returncode == 0 and json.loads(g.stdout)["ok"] is True
     assert b.returncode == 1 and json.loads(b.stdout)["ok"] is False and json.loads(b.stdout)["problems"]
+
+
+def test_thin_contact_rejected_in_dormant(brief, roster):
+    b = copy.deepcopy(brief)
+    b["dormant"][1] = {"row_id": 11, "name": "Jensen Huang", "days_since_contact": 199,
+                       "why": "NVIDIA CEO met briefly at GTC.", "move": "Email Jensen a short note asking for a call about AI.",
+                       "evidence": ["Met briefly at GTC"]}
+    assert "THIN_IN_DORMANT" in codes(validate_brief(b, roster))
+
+
+def test_week_of_must_match(brief, roster):
+    for bad in ("2025-01-06", "Nov 23, 2026"):
+        assert "WEEK_MISMATCH" in codes(validate_brief({**brief, "week_of": bad}, roster))

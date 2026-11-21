@@ -11,7 +11,8 @@ NEAR_DORMANT_DAYS = 53
 THIN_MAX_STRENGTH = 1
 THIN_MIN_WORDS = 10
 
-_REFERENCE = re.compile(r"\b([A-Z][a-z]+)\s+(?:at|from)\s+([A-Z][\w&-]*(?:\s+[A-Z][\w&-]*)*)")
+# Lookahead so matches can overlap: in "Intro from Patrick at Greylock" the pair "Patrick at Greylock" is still seen.
+_REFERENCE = re.compile(r"(?=\b([A-Z][a-z]+)\s+(?:at|from)\s+([A-Z][\w&-]*(?:\s+[A-Z][\w&-]*)*))")
 
 
 def flags_for(c: Contact) -> dict[str, bool]:
@@ -37,6 +38,15 @@ def org_matches(org: OrgRef, c: Contact) -> bool:
     return False
 
 
+def _known_org(org: OrgRef, contacts: list[Contact], goals: list[Goal]) -> bool:
+    """True when the phrase names a company in the roster or an organization named in the goals."""
+    if any(org_matches(org, c) for c in contacts):
+        return True
+    phrase = _tokens(org.name)
+    return any(t and (t <= phrase or phrase <= t)
+               for g in goals for o in g.key_orgs + g.no_contacts_yet for t in map(_tokens, o.terms()))
+
+
 def _who(cs: list[Contact]) -> str:
     return ", ".join(f"{c.name} ({c.company or 'no company listed'})" for c in cs)
 
@@ -58,8 +68,8 @@ def run_checks(contacts: list[Contact], goals: list[Goal]) -> list[Issue]:
             if not any(org_matches(org, c) for c in contacts):
                 seen_missing.add(org.name.lower())
                 issues.append(Issue("GOAL_ORG_MISSING", "warn",
-                                    f"Goal {g.id} mentions {org.name}, but nobody at {org.name} is in the spreadsheet. "
-                                    f"Who is the contact there? Add them so the brief can include them."))
+                                    f"Goal {g.id} mentions {org.name}, but nobody at {org.name} is in the network list. "
+                                    f"Who is the contact there? Add them so next week's brief can include them."))
 
     # 2. Goals say "no contacts yet at X", but the roster has someone there.
     for g in goals:
@@ -68,8 +78,9 @@ def run_checks(contacts: list[Contact], goals: list[Goal]) -> list[Issue]:
             if found:
                 rows = [c.row_id for c in found]
                 issues.append(Issue("GOAL_CONTRADICTION", "warn",
-                                    f"goals.md says there are no contacts yet at {org.name}, but the spreadsheet has "
-                                    f"{_who(found)}. Update goals.md or check row {_rows_text(rows)}.", rows))
+                                    f"The goals say there's no contact at {org.name} yet, but {_who(found)} "
+                                    f"{'is' if len(found) == 1 else 'are'} in the network. Is that the way in? "
+                                    "If so, update goals.md.", rows))
 
     # 3. "<First> at <Org>" in notes/summary where that first name isn't at that org.
     by_first = defaultdict(list)
@@ -82,16 +93,18 @@ def run_checks(contacts: list[Contact], goals: list[Goal]) -> list[Issue]:
                 if not same_first:
                     continue
                 org = OrgRef(org_phrase)
+                if not _known_org(org, contacts, goals):
+                    continue  # "Saw Reid at Davos": a place or event, not an organization in her world
                 if any(org_matches(org, c) for c in same_first):
                     continue
                 at_org = [c for c in contacts if org_matches(org, c) and c is not owner]
-                only = "the only" if len(same_first) == 1 else f"the {first}s in the spreadsheet are"
+                only = "the only" if len(same_first) == 1 else f"the {first}s in the network are"
                 where = (f"The {org_phrase} contact is {_who(at_org)}." if at_org
-                         else f"Nobody at {org_phrase} is in the spreadsheet.")
+                         else f"Nobody at {org_phrase} is in the network list.")
                 issues.append(Issue("AMBIGUOUS_REFERENCE", "warn",
                                     f"{owner.name}'s notes mention \"{first} at {org_phrase}\", but {only} "
-                                    f"{first + ' in the spreadsheet is ' if len(same_first) == 1 else ''}"
-                                    f"{_who(same_first)}. {where} Check who made the intro.", [owner.row_id]))
+                                    f"{first + ' in the network is ' if len(same_first) == 1 else ''}"
+                                    f"{_who(same_first)}. {where} Who made the intro?", [owner.row_id]))
 
     # 4. Exact duplicate names, then shared first/last names.
     by_full = defaultdict(list)

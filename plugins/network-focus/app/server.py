@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
 """Network Focus page: a tiny local web server (Python standard library only) that runs the same
 /network-focus:brief skill in the background with `claude -p`, and shows progress and the PDF.
 
@@ -8,6 +12,7 @@ import hmac
 import json
 import os
 import subprocess
+import tempfile
 import threading
 import time
 import uuid
@@ -36,13 +41,14 @@ class AppConfig:
     claude_args: list[str] = field(default_factory=lambda: list(DEFAULT_CLAUDE_ARGS))
     uv_path: str = "uv"
     scripts_dir: Path = HERE / "scripts"
+    run_timeout: int = 900  # seconds; a hung run is stopped so the page never stays locked
 
     @classmethod
     def load(cls, path: Path) -> "AppConfig":
         d = json.loads(Path(path).read_text())
         return cls(port=d["port"], token=d["token"], nf_home=Path(d["nf_home"]), claude_path=d["claude_path"],
                    claude_args=d.get("claude_args", list(DEFAULT_CLAUDE_ARGS)), uv_path=d.get("uv_path", "uv"),
-                   scripts_dir=Path(d.get("scripts_dir", HERE / "scripts")))
+                   scripts_dir=Path(d.get("scripts_dir", HERE / "scripts")), run_timeout=d.get("run_timeout", 900))
 
 
 class Run:
@@ -62,34 +68,53 @@ class Run:
     def _go(self) -> None:
         cfg, started = self.cfg, time.time()
         prompt = "/network-focus:brief" + (f" {cfg.nf_home / 'inbox' / self.file}" if self.file else "")
-        result_text, last = "", None
+        result_text, stderr, last, timed_out = "", "", None, threading.Event()
         try:
-            p = subprocess.Popen([cfg.claude_path, "-p", prompt, *cfg.claude_args], cwd=cfg.nf_home,
-                                 env={**os.environ, "NF_HOME": str(cfg.nf_home)}, stdin=subprocess.DEVNULL,
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            for line in p.stdout:
+            with tempfile.TemporaryFile(mode="w+") as err:  # a file, so a chatty stderr can't block stdout
+                p = subprocess.Popen([cfg.claude_path, "-p", prompt, *cfg.claude_args], cwd=cfg.nf_home,
+                                     env={**os.environ, "NF_HOME": str(cfg.nf_home)}, stdin=subprocess.DEVNULL,
+                                     stdout=subprocess.PIPE, stderr=err, text=True)
+                watchdog = threading.Timer(cfg.run_timeout, lambda: (timed_out.set(), p.kill()))
+                watchdog.daemon = True
+                watchdog.start()
                 try:
-                    ev = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if ev.get("type") == "result":
-                    result_text = str(ev.get("result", ""))
-                step = progress_from_event(ev)
-                if step and step != last:
-                    self.add({"step": step})
-                    last = step
-            stderr = p.stderr.read()
-            p.wait()
+                    for line in p.stdout:
+                        try:
+                            ev = json.loads(line)
+                        except ValueError:
+                            continue
+                        if not isinstance(ev, dict):
+                            continue
+                        if ev.get("type") == "result":
+                            result_text = str(ev.get("result", ""))
+                        step = progress_from_event(ev)
+                        if step and step != last:
+                            self.add({"step": step})
+                            last = step
+                    p.wait()
+                finally:
+                    watchdog.cancel()
+                err.seek(0)
+                stderr = err.read()
         except OSError as e:
             stderr = str(e)
             result_text = "I couldn't start Claude. Click Check setup, or run /network-focus:setup-app again."
-        pdfs = sorted((f for f in (cfg.nf_home / "briefs").glob("*.pdf") if f.stat().st_mtime >= started - 1),
-                      key=lambda f: f.stat().st_mtime)
-        if pdfs:
-            self.add({"status": "done", "pdf_url": f"/briefs/{pdfs[-1].name}", "summary": result_text})
-        else:
-            self.add({"status": "failed", "message": failure_message(result_text, stderr)})
-        self.done = True
+        except Exception as e:  # never leave the page locked
+            stderr = repr(e)
+            result_text = "Something went wrong making the brief. Click Generate to try again."
+        finally:
+            try:
+                pdfs = sorted((f for f in (cfg.nf_home / "briefs").glob("*.pdf") if f.stat().st_mtime >= started - 1),
+                              key=lambda f: f.stat().st_mtime)
+                if timed_out.is_set():
+                    self.add({"status": "failed", "message": "That took too long, so I stopped it. "
+                                                             "Click Generate to try again."})
+                elif pdfs:
+                    self.add({"status": "done", "pdf_url": f"/briefs/{pdfs[-1].name}", "summary": result_text})
+                else:
+                    self.add({"status": "failed", "message": failure_message(result_text, stderr)})
+            finally:
+                self.done = True
 
 
 def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
@@ -202,7 +227,7 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
             length = int(self.headers.get("Content-Length", "0") or 0)
             url = urlparse(self.path)
             if url.path == "/api/upload":
-                name = Path(self.headers.get("X-Filename", "")).name
+                name = Path(unquote(self.headers.get("X-Filename", ""))).name
                 if length > MAX_UPLOAD:
                     remaining = length if length <= DRAIN_LIMIT else 0  # read it so the browser gets our message
                     while remaining > 0:
@@ -215,7 +240,14 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                 if not name or name.startswith(".") or Path(name).suffix.lower() not in UPLOAD_SUFFIXES:
                     return self._json(400, {"message": "Only .xlsx or .csv spreadsheets can be added."})
                 (cfg.nf_home / "inbox").mkdir(parents=True, exist_ok=True)
-                (cfg.nf_home / "inbox" / name).write_bytes(self.rfile.read(length))
+                dest = cfg.nf_home / "inbox" / name
+                dest.write_bytes(self.rfile.read(length))
+                try:  # keep the spreadsheet's own date, so the stale-data warning still works
+                    mtime = int(self.headers.get("X-Last-Modified", "")) / 1000
+                    if 0 < mtime < time.time() + 86400:
+                        os.utime(dest, (mtime, mtime))
+                except ValueError:
+                    pass
                 return self._json(200, {"saved": name})
             body = json.loads(self.rfile.read(length) or b"{}") if length else {}
             if url.path == "/api/run":
@@ -230,12 +262,12 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                 run.start()
                 return self._json(200, {"run_id": run.id})
             if url.path == "/api/check":
-                p = subprocess.run([cfg.uv_path, "run", str(cfg.scripts_dir / "check_setup.py"), "--json",
-                                    "--port", str(cfg.port)], capture_output=True, text=True,
-                                   env={**os.environ, "NF_HOME": str(cfg.nf_home)}, timeout=120)
                 try:
+                    p = subprocess.run([cfg.uv_path, "run", str(cfg.scripts_dir / "check_setup.py"), "--json",
+                                        "--port", str(cfg.port)], capture_output=True, text=True,
+                                       env={**os.environ, "NF_HOME": str(cfg.nf_home)}, timeout=120)
                     return self._json(200, {"results": json.loads(p.stdout.strip().splitlines()[-1])})
-                except (json.JSONDecodeError, IndexError):
+                except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError, IndexError):
                     return self._json(200, {"results": [{"name": "Setup check", "status": "fail",
                                                          "detail": "The check couldn't run.",
                                                          "fix": "Run /network-focus:setup-app in the Claude app."}]})

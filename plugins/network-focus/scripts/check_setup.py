@@ -16,7 +16,9 @@ from pathlib import Path
 from nf_core.goals import parse_goals
 from nf_core.issues import BlockingError
 from nf_core.roster import read_roster
-from nf_core.workspace import Workspace, file_date, nf_home, pick_roster
+from nf_core.workspace import Workspace, ensure_workspace, file_date, nf_home, pick_roster
+
+TEMPLATE = Path(__file__).resolve().parent.parent / "templates" / "goals.md"
 
 CLAUDE_PATHS = ["/opt/homebrew/bin/claude", "/usr/local/bin/claude", str(Path.home() / ".local/bin/claude"),
                 str(Path.home() / ".claude/local/claude")]
@@ -54,11 +56,17 @@ def setup_checks(home: Path, port: int = 8765) -> list[CheckResult]:
                             "Type 'make this week's network brief' once and it will create the folder for you.")] \
             + _tools(port)
     res = [CheckResult("Network Focus folder", "ok", f"Found at {ws.root}.")]
+    had_goals = ws.goals_path.exists()
+    if TEMPLATE.exists():
+        ensure_workspace(ws, TEMPLATE)  # a folder made in Finder gets its inbox, briefs and starter goals
 
     if not ws.goals_path.exists():
         res.append(CheckResult("goals.md", "fail", "goals.md is missing.",
-                               "Run /network-focus:brief once; it recreates goals.md from the starter goals. "
-                               "Then open it and check the goals are still right."))
+                               "Run /network-focus:setup-app once; it adds the starter goals. "
+                               "Then open goals.md and check the goals are still right."))
+    elif not had_goals:
+        res.append(CheckResult("goals.md", "ok", "goals.md was missing, so I added the starter goals. "
+                                                 "Open it and check they're still right."))
     else:
         try:
             goals = parse_goals(ws.goals_path.read_text())
@@ -78,8 +86,13 @@ def setup_checks(home: Path, port: int = 8765) -> list[CheckResult]:
             res.append(CheckResult("Spreadsheet columns", "fail", e.issue.message,
                                    "Fix the spreadsheet as described, save it, and put it back in the inbox."))
     except BlockingError as e:
-        res.append(CheckResult("Spreadsheet in inbox", "fail", e.issue.message,
-                               f"Drag this week's spreadsheet into {ws.inbox}."))
+        if e.issue.code == "NO_SPREADSHEET":
+            res.append(CheckResult("Spreadsheet in inbox", "info",
+                                   f"No spreadsheet yet, which is normal before the first brief. Drag this week's file "
+                                   f"onto the Network Focus page, or into {ws.inbox}."))
+        else:
+            res.append(CheckResult("Spreadsheet in inbox", "fail", e.issue.message,
+                                   "Save it as .xlsx or .csv and put that copy in the inbox."))
 
     try:
         ws.briefs.mkdir(parents=True, exist_ok=True)

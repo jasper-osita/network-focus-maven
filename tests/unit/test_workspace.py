@@ -127,3 +127,12 @@ def test_clears_previous_work(home, sample_xlsx):
     (home / ".work" / "brief.json").write_text("{}")
     code, _, _ = run_cli(home, "--roster", str(sample_xlsx))
     assert code == 0 and not (home / ".work" / "brief.json").exists()
+
+
+def test_old_excel_format_is_named(home):
+    (home / "inbox" / "roster.xls").write_bytes(b"old")
+    from nf_core.issues import BlockingError
+    with pytest.raises(BlockingError) as e:
+        pick_roster(Workspace(home), None)
+    assert e.value.issue.code == "UNSUPPORTED_FILE" and "roster.xls" in e.value.issue.message
+    assert ".xlsx or .csv" in e.value.issue.message

@@ -26,6 +26,75 @@ def pdf_safe(text: str) -> str:
     return "".join(out)
 
 
+# Embeddable fallback fonts, tried in order for characters Helvetica can't draw. Loaded only when needed.
+WIDE_FONTS = ("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", "/Library/Fonts/Arial Unicode.ttf",
+              "/System/Library/Fonts/Supplemental/Arial.ttf", "/System/Library/Fonts/Supplemental/Songti.ttc",
+              "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+              "C:/Windows/Fonts/arial.ttf")
+_LOADED: list[tuple[str, set]] = []
+_STATE = {"next": 0, "cjk": None, "cjk_tried": False}
+
+
+def _font_with_glyph(ch: str) -> str | None:
+    """Name of a registered font that can draw `ch`, loading more fallback fonts only as needed."""
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    code = ord(ch)
+    for name, glyphs in _LOADED:
+        if code in glyphs:
+            return name
+    while _STATE["next"] < len(WIDE_FONTS):
+        path = WIDE_FONTS[_STATE["next"]]
+        _STATE["next"] += 1
+        if not Path(path).exists():
+            continue
+        try:
+            name = f"NFWide{len(_LOADED)}"
+            font = TTFont(name, path, subfontIndex=0) if path.endswith(".ttc") else TTFont(name, path)
+            pdfmetrics.registerFont(font)
+            _LOADED.append((name, set(font.face.charToGlyph)))
+        except Exception:
+            continue
+        if code in _LOADED[-1][1]:
+            return name
+    if not _STATE["cjk_tried"]:  # last resort: built-in CJK font (not embedded; most PDF readers can show it)
+        _STATE["cjk_tried"] = True
+        try:
+            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+            pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+            _STATE["cjk"] = "STSong-Light"
+        except Exception:
+            pass
+    return _STATE["cjk"] if _STATE["cjk"] and _gb_ok(ch) else None
+
+
+def pdf_markup(text: str) -> str:
+    """Escape text for a ReportLab Paragraph, switching font for runs Helvetica can't draw (e.g. 李伟, Łukasz)."""
+    runs: list[tuple[str | None, str]] = []
+    for ch in str(text):
+        ch = _ASCII.get(ch, ch)
+        font = None
+        try:
+            ch.encode("cp1252")
+        except UnicodeEncodeError:
+            font = _font_with_glyph(ch)
+            if font is None:
+                ch = pdf_safe(ch)
+        if runs and runs[-1][0] == font:
+            runs[-1] = (font, runs[-1][1] + ch)
+        else:
+            runs.append((font, ch))
+    return "".join(escape(t) if f is None else f'<font name="{f}">{escape(t)}</font>' for f, t in runs)
+
+
+def _gb_ok(ch: str) -> bool:
+    try:
+        ch.encode("gb2312")
+        return True
+    except UnicodeEncodeError:
+        return False
+
+
 def _fmt(iso: str) -> str:
     d = date.fromisoformat(iso)
     return f"{d:%b} {d.day}, {d.year}"
@@ -45,8 +114,11 @@ def _ctx(brief: dict, roster: dict, warnings: dict) -> dict:
         r = rows[item["row_id"]]
         return ", ".join(x for x in (r["role"], r["company"]) if x)
 
+    picked = {x["row_id"] for sec in ("focus", "dormant", "coming_up") for x in brief.get(sec, [])}
+    soon = [w for w in ws if w["code"] == "NEAR_DORMANT" and not set(w.get("rows", [])) & picked]
     return {"rows": rows, "goals": goals, "banner": banner, "checks": checks, "who": who,
-            "info": [w["message"] for w in ws if w["severity"] == "info"],
+            "soon": [w["message"] for w in soon],
+            "info": [w["message"] for w in ws if w["severity"] == "info" and w not in soon],
             "src": roster["source"]}
 
 
@@ -68,8 +140,9 @@ def render_markdown(brief: dict, roster: dict, warnings: dict) -> str:
         lines.append(f"- **{d['name']}** · {c['who'](d)} · {d['days_since_contact']} days. {d['why']} "
                      f"**Move:** {d['move']}")
     lines.append("")
-    if brief.get("coming_up"):
-        lines += ["## COMING UP", ""] + [f"- **{x['name']}**: {x['note']}" for x in brief["coming_up"]] + [""]
+    if brief.get("coming_up") or c["soon"]:
+        lines += ["## COMING UP", ""] + [f"- **{x['name']}**: {x['note']}" for x in brief["coming_up"]]
+        lines += [f"- Goes quiet soon: {m}" for m in c["soon"]] + [""]
     lines += ["## CHECK BEFORE THE MEETING", ""] + [f"- {m}" for m in c["checks"] or ["Nothing to flag."]] + [""]
     if c["info"]:
         lines += ["## Also noted", ""] + [f"- {m}" for m in c["info"]] + [""]
@@ -79,7 +152,8 @@ def render_markdown(brief: dict, roster: dict, warnings: dict) -> str:
 def _story(brief, c, size, styles):
     from reportlab.platypus import Paragraph, Spacer
     s = styles(size)
-    p = lambda text, st: Paragraph(escape(pdf_safe(text)).replace("**", ""), s[st])
+    p = lambda text, st: Paragraph(pdf_markup(str(text).replace("**", "")), s[st])
+    m = pdf_markup
     src = c["src"]
     story = [p(f"NETWORK FOCUS · Week of {_fmt(brief['week_of'])}", "title"),
              p(f"Data as of: {_fmt(src['as_of'])} (file date) · {src['file_name']}", "meta")]
@@ -91,16 +165,18 @@ def _story(brief, c, size, styles):
         low = " · low confidence" if f["confidence"] == "low" else ""
         story.append(p(f"{i}. {f['name']} · {c['who'](f)} · {goals}{low}", "name"))
         for label, key in (("Why", "why"), ("Move", "move"), ("At risk", "risk")):
-            story.append(Paragraph(f"<b>{label}:</b> {escape(pdf_safe(f[key]))}", s["body"]))
+            story.append(Paragraph(f"<b>{label}:</b> {m(f[key])}", s["body"]))
     story.append(p(f"DORMANT BUT HIGH-LEVERAGE ({len(brief['dormant'])})", "h"))
     for d in brief["dormant"]:
-        story.append(Paragraph(f"<b>{escape(pdf_safe(d['name']))}</b> · {escape(pdf_safe(c['who'](d)))} · "
-                               f"{d['days_since_contact']} days. {escape(pdf_safe(d['why']))} "
-                               f"<b>Move:</b> {escape(pdf_safe(d['move']))}", s["bullet"]))
-    if brief.get("coming_up"):
+        story.append(Paragraph(f"<b>{m(d['name'])}</b> · {m(c['who'](d))} · "
+                               f"{d['days_since_contact']} days. {m(d['why'])} "
+                               f"<b>Move:</b> {m(d['move'])}", s["bullet"]))
+    if brief.get("coming_up") or c["soon"]:
         story.append(p("COMING UP", "h"))
         for x in brief["coming_up"]:
-            story.append(Paragraph(f"<b>{escape(pdf_safe(x['name']))}</b>: {escape(pdf_safe(x['note']))}", s["bullet"]))
+            story.append(Paragraph(f"<b>{m(x['name'])}</b>: {m(x['note'])}", s["bullet"]))
+        for msg in c["soon"]:
+            story.append(Paragraph(f"Goes quiet soon: {m(msg)}", s["bullet"]))
     story.append(p("CHECK BEFORE THE MEETING", "h"))
     for m in c["checks"] or ["Nothing to flag."]:
         story.append(p(f"- {m}", "check"))

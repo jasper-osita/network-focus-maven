@@ -34,6 +34,6 @@ load_roster.py → goal-scout × N (parallel) → pick → validate_brief.py →
 ## Tests
 
 ```bash
-uv run pytest                                      # 92 unit tests, no API calls
+uv run pytest                                      # 109 unit tests, no API calls
 uv run python tests/evals/run_evals.py --grade     # 6 real end-to-end runs + grader (~$8)
 ```

@@ -36,10 +36,19 @@ def test_healthy_workspace(home):
     assert "saved today" in next(x.detail for x in r if x.name == "Spreadsheet in inbox")
 
 
-def test_missing_goals_fails_with_fix(home):
+def test_missing_goals_restored(home):
     (home / "goals.md").unlink()
     g = next(x for x in setup_checks(home, port=FREE_PORT) if x.name == "goals.md")
-    assert g.status == "fail" and "/network-focus:brief" in g.fix
+    assert g.status == "ok" and "starter goals" in g.detail and (home / "goals.md").exists()
+
+
+def test_empty_existing_folder_has_no_failures(tmp_path):
+    h = tmp_path / "Network Focus"
+    h.mkdir()
+    r = setup_checks(h, port=FREE_PORT)
+    assert [x.name for x in r if x.status == "fail"] == []
+    assert (h / "inbox").is_dir() and (h / "goals.md").exists()
+    assert next(x for x in r if x.name == "Spreadsheet in inbox").status == "info"
 
 
 def test_bad_spreadsheet_names_column(home, make_roster):

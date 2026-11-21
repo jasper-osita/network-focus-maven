@@ -56,3 +56,21 @@ def test_missing_claude_still_installs(home, monkeypatch):
     r = install_app.install(PLUGIN, home, launch=False)
     assert any("Claude Code" in w for w in r["warnings"])
     assert (home / "Desktop" / "Network Focus.webloc").exists()
+
+
+def test_install_prepares_operator_folder(home):
+    install_app.install(PLUGIN, home, launch=False)
+    nf = home / "Documents" / "Network Focus"
+    assert (nf / "inbox").is_dir() and (nf / "briefs").is_dir() and (nf / "goals.md").exists()
+    assert (home / "Library" / "Application Support" / "Network Focus" / "templates" / "goals.md").exists()
+
+
+def test_background_permissions_scoped(home):
+    install_app.install(PLUGIN, home, launch=False)
+    cfg = json.loads((home / "Library" / "Application Support" / "Network Focus" / "config.json").read_text())
+    tools = cfg["claude_args"][cfg["claude_args"].index("--allowedTools") + 1]
+    rules = tools.split(",")
+    assert "Read" not in rules and "Write" not in rules and "Edit" not in rules and "Bash(uv run *)" not in rules
+    assert any(r.startswith("Read(/") and "Documents/Network" in r for r in rules)
+    assert any(r.startswith("Edit(/") and r.endswith(".work/**)") for r in rules)
+    assert any(r.startswith('Bash(uv run "') and "/scripts/" in r for r in rules)

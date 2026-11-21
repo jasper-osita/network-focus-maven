@@ -17,8 +17,23 @@ from pathlib import Path
 
 LABEL = "com.networkfocus.app"
 APP_FILES = ("server.py", "index.html", "progress.py")
-DEFAULT_CLAUDE_ARGS = ["--output-format", "stream-json", "--verbose", "--permission-mode", "dontAsk",
-                       "--allowedTools", "Read,Write,Edit,Bash(uv run *),Agent,Task"]
+
+
+def background_allowed_tools(nf_home: Path, plugin_root: Path) -> str:
+    """Spec §5.8: in background runs Claude may only read the Network Focus folder (and the plugin's own files),
+    write inside its working folder, and run the plugin's own scripts. `//` marks an absolute path in a rule."""
+    return ",".join([
+        f"Read(/{nf_home}/**)",
+        f"Read(/{plugin_root}/**)",
+        f"Edit(/{nf_home}/.work/**)",
+        f'Bash(uv run "{plugin_root}/scripts/*)',
+        "Agent", "Task",
+    ])
+
+
+def claude_args(nf_home: Path, plugin_root: Path) -> list[str]:
+    return ["--output-format", "stream-json", "--verbose", "--permission-mode", "dontAsk",
+            "--allowedTools", background_allowed_tools(nf_home, plugin_root)]
 
 
 def find_tool(name: str, extra: tuple | list = ()) -> str | None:
@@ -26,6 +41,20 @@ def find_tool(name: str, extra: tuple | list = ()) -> str | None:
     candidates = [shutil.which(name), f"/opt/homebrew/bin/{name}", f"/usr/local/bin/{name}",
                   str(Path.home() / ".local" / "bin" / name), *extra]
     return next((c for c in candidates if c and Path(c).is_file() and os.access(c, os.X_OK)), None)
+
+
+def _page_answers(port: int, wait_s: float = 15) -> bool:
+    import time
+    import urllib.request
+    deadline = time.time() + wait_s
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1) as r:
+                if r.status == 200:
+                    return True
+        except OSError:
+            time.sleep(0.5)
+    return False
 
 
 def plist_xml(label: str, uv: str, server: Path, config: Path, path_env: str, log_dir: Path) -> bytes:
@@ -50,8 +79,14 @@ def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True
     app_dir.mkdir(parents=True, exist_ok=True)
     for f in APP_FILES:
         shutil.copy(plugin_root / "app" / f, app_dir / f)
-    shutil.copytree(plugin_root / "scripts", app_dir / "scripts", dirs_exist_ok=True,
-                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    for d in ("scripts", "templates"):
+        shutil.copytree(plugin_root / d, app_dir / d, dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    nf_home = home / "Documents" / "Network Focus"
+    for d in ("inbox", "briefs", ".work"):
+        (nf_home / d).mkdir(parents=True, exist_ok=True)
+    if not (nf_home / "goals.md").exists():
+        shutil.copy(plugin_root / "templates" / "goals.md", nf_home / "goals.md")
     (app_dir / "logs").mkdir(exist_ok=True)
 
     warnings = []
@@ -64,8 +99,8 @@ def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True
     cfg_path = app_dir / "config.json"
     old = json.loads(cfg_path.read_text()) if cfg_path.exists() else {}
     cfg = {"port": port, "token": old.get("token") or secrets.token_urlsafe(24),
-           "nf_home": str(home / "Documents" / "Network Focus"), "claude_path": claude or "claude",
-           "claude_args": DEFAULT_CLAUDE_ARGS, "uv_path": uv, "scripts_dir": str(app_dir / "scripts")}
+           "nf_home": str(nf_home), "claude_path": claude or "claude",
+           "claude_args": claude_args(nf_home, plugin_root.resolve()), "uv_path": uv, "scripts_dir": str(app_dir / "scripts")}
     cfg_path.write_text(json.dumps(cfg, indent=2))
     cfg_path.chmod(0o600)
 
@@ -84,9 +119,9 @@ def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True
         domain = f"gui/{os.getuid()}"
         subprocess.run(["launchctl", "bootout", f"{domain}/{LABEL}"], capture_output=True)
         r = subprocess.run(["launchctl", "bootstrap", domain, str(plist)], capture_output=True, text=True)
-        if r.returncode != 0:
-            warnings.append(f"The page didn't start automatically ({r.stderr.strip() or 'launchctl error'}). "
-                            "Restart the Mac and it will start on login.")
+        if r.returncode != 0 or not _page_answers(port):
+            warnings.append("The page didn't start straight away. Restart the Mac and it will start on login; "
+                            "if it still won't open, run /network-focus:setup-app again.")
     return {"url": url, "app_dir": str(app_dir), "plist": str(plist), "webloc": str(webloc), "warnings": warnings}
 
 

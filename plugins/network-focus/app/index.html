@@ -83,8 +83,11 @@
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
+const OOPS = "Something went wrong talking to the Network Focus page. Restart the Mac, or type /network-focus:setup-app in the Claude app.";
+
 async function refresh() {
-  const r = await fetch("/api/status");
+  let r;
+  try { r = await fetch("/api/status"); } catch (e) { $("hint").textContent = OOPS; return; }
   if (!r.ok) { document.body.innerHTML = "<main><p>Open Network Focus from the link on your Desktop.</p></main>"; return; }
   const s = await r.json();
   $("file").innerHTML = s.inbox.length
@@ -94,6 +97,8 @@ async function refresh() {
     ? s.briefs.map((b) => `<li><a href="${esc(b.url)}" target="_blank">${esc(b.name)}</a></li>`).join("")
     : "<li>None yet.</li>";
   $("go").disabled = s.running || !s.inbox.length;
+  $("hint").textContent = s.running ? "A brief is being made right now. Check back in a few minutes."
+                                    : "Takes about 3 minutes. You can leave this page open and come back.";
 }
 
 const drop = $("drop");
@@ -102,9 +107,12 @@ const drop = $("drop");
 drop.addEventListener("drop", async (ev) => {
   const f = ev.dataTransfer.files[0];
   if (!f) return;
-  const r = await fetch("/api/upload", { method: "POST", headers: { "X-Filename": f.name }, body: f });
-  const j = await r.json();
-  drop.textContent = r.ok ? `Added ${j.saved}.` : j.message;
+  try {
+    const r = await fetch("/api/upload", { method: "POST", body: f,
+      headers: { "X-Filename": encodeURIComponent(f.name), "X-Last-Modified": String(f.lastModified || "") } });
+    const j = await r.json();
+    drop.textContent = r.ok ? `Added ${j.saved}.` : j.message;
+  } catch (e) { drop.textContent = OOPS; }
   await refresh();
 });
 
@@ -113,9 +121,12 @@ $("go").addEventListener("click", async () => {
   $("progress").hidden = false;
   $("steps").innerHTML = "<li class='now'>Starting…</li>";
   $("result").innerHTML = "";
-  const r = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" },
-                                       body: JSON.stringify({ file: $("file").value }) });
-  const j = await r.json();
+  let r, j;
+  try {
+    r = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ file: $("file").value }) });
+    j = await r.json();
+  } catch (e) { $("result").innerHTML = `<p class="result-bad">${esc(OOPS)}</p>`; return refresh(); }
   if (!r.ok) { $("result").innerHTML = `<p class="result-bad">${esc(j.message)}</p>`; return refresh(); }
   const es = new EventSource(`/api/run/${j.run_id}/events`);
   const steps = [];
@@ -135,13 +146,20 @@ $("go").addEventListener("click", async () => {
       refresh();
     }
   };
-  es.onerror = () => { es.close(); refresh(); };
+  es.onerror = () => {
+    es.close();
+    $("result").innerHTML = `<p class="result-bad">Lost touch with the page. If no PDF appears in Past briefs within a few minutes, click Generate again.</p>`;
+    refresh();
+  };
 });
 
 $("check").addEventListener("click", async () => {
   $("checks").innerHTML = "<li class='muted'>Checking…</li>";
-  const r = await fetch("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-  const j = await r.json();
+  let j;
+  try {
+    const r = await fetch("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    j = await r.json();
+  } catch (e) { $("checks").innerHTML = `<li>${esc(OOPS)}</li>`; return; }
   const icon = { ok: "✅", fail: "❌", info: "ℹ️" };
   $("checks").innerHTML = j.results.map((c) => `<li>${icon[c.status] || ""} <strong>${esc(c.name)}:</strong> ${esc(c.detail)}
     ${c.fix ? `<div class="fix">Fix: ${esc(c.fix)}</div>` : ""}</li>`).join("");

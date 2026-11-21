@@ -61,7 +61,7 @@ Write `WORK/brief.json` so it follows `${CLAUDE_PLUGIN_ROOT}/schemas/brief.json`
   - `why`, `move` and `risk`: one sentence each, specific to this person. Any "N days" must match the row.
   - `evidence`: 1–2 quotes, at least 3 words each, copied word for word from that contact's `text`.
   - `confidence`: "low" if `flags.thin` is true.
-- `dormant`: 2–3 people with `flags.dormant` true who aren't in focus. Copy `days_since_contact` from the row.
+- `dormant`: 2–3 people with `flags.dormant` true who aren't in focus and don't have `flags.thin`. Copy `days_since_contact` from the row.
 - `coming_up`: people to prepare for but not push yet (timing "later"). At most 2.
 - `goal_gaps`: any goal with no credible pick, and what's missing.
 - `extra_checks`: up to 3 data problems from the scouts' `concerns` that aren't already in warnings.json. Never repeat warnings.json, because the PDF adds those automatically.
@@ -103,4 +103,4 @@ Dormant: <names>
 <N> things to check with the CEO. They're at the bottom of the brief.
 ```
 
-N is the number of warn-level warnings, plus `extra_checks`, plus `goal_gaps`.
+N is the number of warn-level warnings other than STALE_FILE and REUSED_FILE (those go in a banner at the top), plus `extra_checks`, plus `goal_gaps`.

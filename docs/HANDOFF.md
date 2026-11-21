@@ -24,7 +24,7 @@ Every Monday, Network Focus turns the CEO's network spreadsheet and goals into a
 
 ## What "good" looks like
 
-**A normal Monday.** *Input:* a 25-contact spreadsheet and 3 goals. *Output:* a one-page PDF with 3–5 entries like *Diana Chen · CTO, Stripe*, each with Why, Move ("Call Diana this week and ask for intros to the 3–4 CTO candidates she mentioned") and At risk, then 2–3 dormant contacts, then checks like *"Goal 1 mentions a16z, but nobody at a16z is in the spreadsheet."* Every move should be doable this week, and every reason should match the spreadsheet.
+**A normal Monday.** *Input:* a 25-contact spreadsheet and 3 goals. *Output:* a one-page PDF with 3–5 entries like *Diana Chen · CTO, Stripe*, each with Why, Move ("Call Diana this week and ask for intros to the 3–4 CTO candidates she mentioned") and At risk, then 2–3 dormant contacts, then checks like *"Goal 1 mentions a16z, but nobody at a16z is in the network list. Who is the contact there?"* Every move should be doable this week, and every reason should match the spreadsheet.
 
 **A changed spreadsheet.** *Input:* the "Days Since Last Contact" header was renamed "Days" and Notes was deleted. *Output:* no brief, and the message *"roster.xlsx is missing these columns: Days Since Last Contact, Notes. Add them back (or fix the header spelling) in the first row, then run again."* Fix the header row, drag the file in again, and click Generate.
 
@@ -34,7 +34,7 @@ Every Monday, Network Focus turns the CEO's network spreadsheet and goals into a
 |---|---|
 | "There's no spreadsheet…" / "…is missing these columns…" / "I couldn't open…" | Add the file, fix the header row, or re-save it as .xlsx in Excel (double-click a .zip to unzip it first). Run again. |
 | **Data warning** at the top (old file date, or the same file as last week) | The brief is still fine to use, but the "days" may be a little off. Export a fresh copy next week. |
-| "Who is the contact there?", "Check who made the intro", "Update goals.md or check row N" | These aren't errors. They're questions for the CEO. Fix the spreadsheet or goals.md before next week. |
+| "Who is the contact there?", "Who made the intro?", "Is that the way in?" | These aren't errors. They're questions for the CEO. Fix the spreadsheet or goals.md before next week. |
 | "I couldn't make a brief I'm confident in this week" | Click Generate again. If it repeats, click **Check setup** and send a screenshot to whoever set this up. |
 | "Claude is signed out" / the page won't open | Sign in to the Claude app. If the page still won't open, restart the Mac or type `/network-focus:setup-app`. |
 

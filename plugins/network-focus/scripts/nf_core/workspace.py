@@ -9,6 +9,7 @@ from pathlib import Path
 from .issues import Issue, block
 
 SPREADSHEET_SUFFIXES = (".xlsx", ".csv", ".zip")
+OTHER_SPREADSHEETS = (".xls", ".xlsm", ".xlsb", ".numbers", ".ods")
 STALE_DAYS = 7
 
 
@@ -58,6 +59,12 @@ def pick_roster(ws: Workspace, explicit: Path | None) -> tuple[Path, list[Issue]
              if f.is_file() and f.suffix.lower() in SPREADSHEET_SUFFIXES
              and not f.name.startswith(("~$", "."))] if ws.inbox.exists() else []
     if not files:
+        other = [f for f in ws.inbox.iterdir() if f.is_file() and f.suffix.lower() in OTHER_SPREADSHEETS
+                 and not f.name.startswith(("~$", "."))] if ws.inbox.exists() else []
+        if other:
+            raise block("UNSUPPORTED_FILE",
+                        f"{other[0].name} is in a format I can't read. Open it and save or export it as .xlsx or .csv "
+                        "(in Excel: File → Save As → Excel Workbook), then put that copy in the inbox.")
         raise block("NO_SPREADSHEET",
                     f"There's no spreadsheet in {ws.inbox}. Drag this week's file into that folder "
                     "(or onto the Network Focus page), then run again.")

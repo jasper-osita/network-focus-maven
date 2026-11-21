@@ -75,6 +75,10 @@ def validate_brief(brief: dict, roster: dict) -> list[Problem]:
     rows = _by_row(roster)
     goal_ids = {g["id"] for g in roster["goals"]}
     seen: dict[int, str] = {}
+    expected_week = roster.get("source", {}).get("week_of")
+    if expected_week and brief["week_of"] != expected_week:
+        problems.append(Problem("WEEK_MISMATCH", "week_of",
+                                f"week_of is '{brief['week_of']}'; copy roster.json source.week_of exactly: '{expected_week}'."))
 
     def once(item, where):
         if item["row_id"] in seen:
@@ -104,6 +108,10 @@ def validate_brief(brief: dict, roster: dict) -> list[Problem]:
         row = _check_person(item, where, rows, problems)
         if row is None:
             continue
+        if row["flags"]["thin"]:
+            problems.append(Problem("THIN_IN_DORMANT", where,
+                                    f"{where}: very little is known about {row['name']}, so they can't be a dormant pick. "
+                                    "Choose someone with real history."))
         days = row.get("days_since_contact")
         if days is None or days < DORMANT_DAYS:
             problems.append(Problem("NOT_DORMANT", where,

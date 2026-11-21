@@ -1,5 +1,6 @@
 import copy
 import json
+import shutil
 import subprocess
 import sys
 
@@ -26,7 +27,7 @@ def test_markdown_sections(brief_dict, roster_dict, warnings_dict):
 
 def test_info_items_only_in_also_noted(brief_dict, roster_dict, warnings_dict):
     md = render_markdown(brief_dict, roster_dict, warnings_dict)
-    info = [x["message"] for x in warnings_dict["warnings"] if x["severity"] == "info"]
+    info = [x["message"] for x in warnings_dict["warnings"] if x["severity"] == "info" and x["code"] != "NEAR_DORMANT"]
     assert all(m in md.split("Also noted")[1] for m in info)
 
 
@@ -90,3 +91,21 @@ def test_records_history_and_names(tmp_path, brief_dict, roster_dict, warnings_d
     assert (home / "briefs" / "2026-11-23-network-focus.md").exists()
     hist = json.loads((home / ".history.json").read_text())
     assert len(hist) == 1 and hist[0]["sha256"] == roster_dict["source"]["sha256"] and hist[0]["run_date"] == "2026-11-23"
+
+
+def test_near_dormant_shown_in_coming_up(brief_dict, roster_dict, warnings_dict):
+    md = render_markdown(brief_dict, roster_dict, warnings_dict)
+    coming = md.split("## COMING UP")[1].split("## CHECK")[0]
+    assert "Lin Wang" in coming and "Patrick Collison" in coming
+
+
+@pytest.mark.skipif(not shutil.which("pdftotext"), reason="needs pdftotext")
+def test_non_latin_names_survive_in_pdf(tmp_path, brief_dict, roster_dict, warnings_dict):
+    b, r = copy.deepcopy(brief_dict), copy.deepcopy(roster_dict)
+    for name, idx, row in (("李伟", 0, 3), ("Łukasz Nowak", 1, 2), ("Дмитрий Орлов", 2, 6)):
+        b["focus"][idx]["name"] = name
+        next(c for c in r["contacts"] if c["row_id"] == row)["name"] = name
+    out = tmp_path / "b.pdf"
+    render_pdf(b, r, warnings_dict, out)
+    text = subprocess.run(["pdftotext", str(out), "-"], capture_output=True, text=True).stdout
+    assert "李伟" in text and "Łukasz" in text and "Дмитрий" in text

@@ -120,3 +120,42 @@ def test_check_endpoint(server):
     status, body, _ = call(server, "POST", "/api/check", body={})
     results = json.loads(body)["results"]
     assert status == 200 and any(r["name"] == "goals.md" and r["status"] == "ok" for r in results)
+
+
+def test_hung_run_times_out_and_unlocks(server, monkeypatch):
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "hang")
+    server.cfg.run_timeout = 2
+    _, body, _ = call(server, "POST", "/api/run", body={})
+    final = sse(server, json.loads(body)["run_id"])[-1]
+    assert final["status"] == "failed" and "took too long" in final["message"]
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "ok")
+    assert call(server, "POST", "/api/run", body={})[0] == 200
+
+
+def test_bad_stream_lines_do_not_lock(server, monkeypatch):
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "weird")
+    _, body, _ = call(server, "POST", "/api/run", body={})
+    assert sse(server, json.loads(body)["run_id"])[-1]["status"] == "done"
+    assert call(server, "POST", "/api/run", body={})[0] == 200
+
+
+def test_upload_keeps_file_date(server):
+    status, _, _ = call(server, "POST", "/api/upload", body=b"Name\n",
+                        headers={"X-Filename": "dated.csv", "X-Last-Modified": "1700000000000"})
+    assert status == 200 and int((server.cfg.nf_home / "inbox" / "dated.csv").stat().st_mtime) == 1700000000
+
+
+def test_upload_non_ascii_name(server):
+    status, _, _ = call(server, "POST", "/api/upload", body=b"Name\n",
+                        headers={"X-Filename": "CEO%E2%80%99s%20network.csv"})
+    assert status == 200 and (server.cfg.nf_home / "inbox" / "CEO\u2019s network.csv").exists()
+
+
+def test_check_endpoint_survives_missing_uv(server):
+    server.cfg.uv_path = "/nonexistent/uv"
+    status, body, _ = call(server, "POST", "/api/check", body={})
+    assert status == 200 and json.loads(body)["results"][0]["status"] == "fail"
+
+
+def test_server_declares_python_version():
+    assert 'requires-python = ">=3.11"' in (ROOT / "plugins" / "network-focus" / "app" / "server.py").read_text()

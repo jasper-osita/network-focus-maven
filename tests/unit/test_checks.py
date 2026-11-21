@@ -93,3 +93,22 @@ def test_near_dormant_and_thin_info(issues):
     assert "Lin Wang" in near[0].message and "Patrick Collison" in near[1].message  # 59 and 53 days
     thin = of(issues, "THIN_CONTEXT")
     assert len(thin) == 1 and thin[0].rows == [10, 11]
+
+
+def test_capitalized_intro_still_caught(goals):
+    people = [Contact(2, "Marcus Wei", company="Sequoia", notes="Intro from Patrick at Greylock."),
+              Contact(3, "Emma Bouchard", company="Lightspeed", summary="Referral from Patrick at Greylock"),
+              Contact(4, "Patrick Collison", company="Stripe"), Contact(5, "Reid Hoffman", company="Greylock")]
+    assert [i.rows for i in of(run_checks(people, goals), "AMBIGUOUS_REFERENCE")] == [[2], [3]]
+
+
+def test_event_names_not_flagged(goals):
+    people = [Contact(2, "Marcus Wei", company="Sequoia", notes="Saw Reid at Davos. Coffee with Reid at Blue Bottle."),
+              Contact(3, "Reid Hoffman", company="Greylock")]
+    assert of(run_checks(people, goals), "AMBIGUOUS_REFERENCE") == []
+
+
+def test_ceo_facing_copy(issues):
+    for i in issues:
+        if i.code in ("GOAL_ORG_MISSING", "GOAL_CONTRADICTION", "AMBIGUOUS_REFERENCE"):
+            assert "check row" not in i.message and "in the spreadsheet" not in i.message, i.message

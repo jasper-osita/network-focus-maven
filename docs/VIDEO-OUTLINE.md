@@ -4,8 +4,8 @@ These are talking points, not a script. Say them in your own words, and type liv
 
 ## Before you hit record
 
-- [ ] On your Mac, the plugin is installed from GitHub (handoff steps), and `/network-focus:check` shows all ✅.
-- [ ] A fresh copy of `network_roster_terragrid.xlsx` is on the Desktop. A second copy, `broken.xlsx`, is open in Numbers, ready for the failure demo.
+- [ ] On your Mac, the plugin is installed from GitHub (handoff steps), and `/network-focus:check` shows only ✅ and ℹ️.
+- [ ] A fresh copy of `network_roster_terragrid.xlsx` is on the Desktop. A second copy, `broken.xlsx`, is open in **Excel**, ready for the failure demo. Numbers would save it as .numbers; if you only have Numbers, use File → Export To → Excel.
 - [ ] VS Code is open on the repo with these tabs: `docs/PRD.md`, `skills/brief/SKILL.md`, `agents/goal-scout.md`, `scripts/nf_core/brief_checks.py`, `scripts/nf_core/checks.py`, `scripts/nf_core/roster.py`, `tests/evals/results/` (latest).
 - [ ] Notifications are off (Focus mode), the font size is bumped, and the browser shows only the Network Focus page.
 
@@ -25,15 +25,15 @@ These are talking points, not a script. Say them in your own words, and type liv
 ## 3. Architecture with code visible (2–3 min)
 
 - Show the repo tree. The root `marketplace.json` makes the repo installable. Under `plugins/network-focus/` are `skills/` (brief, check, setup-app), `agents/`, `scripts/` and `schemas/`.
-- SKILL.md: `allowed-tools` is limited to `uv run` plus the agents, so there are no permission prompts for her. `${CLAUDE_PLUGIN_ROOT}` locates the scripts.
+- SKILL.md: `allowed-tools` pre-approves only what the skill needs (Read/Write/Edit, `uv run`, the agents), so there are no permission prompts for her. `${CLAUDE_PLUGIN_ROOT}` locates the scripts. Background runs from the page are tighter still: `install_app.py` limits them to her folder and the plugin's own scripts.
 - `schemas/brief.json`: one contract that the agents follow and the validator enforces.
 - `app/server.py`: why a **local** page instead of a cloud app. Her data stays on her Mac, it uses her Claude login, and there's no server to break. Show the guards: 127.0.0.1 only, Host/Origin checks, a token, one run at a time.
-- The test set: open the latest `tests/evals/results/*.md`. Six real end-to-end cases plus an independent grader, alongside 92 unit tests.
+- The test set: open the latest `tests/evals/results/*.md`. Six real end-to-end cases plus an independent grader, alongside 109 unit tests.
 
 ## 4. A failure mode, live, with the code (2–3 min)
 
-- In `broken.xlsx`, rename "Days Since Last Contact" to "Days" and delete the Notes column. Save it and drag it onto the page. You get no brief, and the message names both columns and the fix.
-- Open `roster.py` → `MISSING_COLUMNS`: it stops before any model runs, and no PDF is ever made.
+- In `broken.xlsx` (Excel), rename "Days Since Last Contact" to "Days" and delete the Notes column. Save it as .xlsx and drag it onto the page. You get no brief, and the message names both columns and the fix.
+- Open `roster.py` → `MISSING_COLUMNS`: it stops before any model runs, and no PDF is ever made. (In the Claude app the reply wording varies slightly; the code's sentence is the same.)
 - Second one, briefly: `checks.py` → the "<First> at <Org>" check that produced the Patrick warning. Code finds the ambiguity, and the brief asks the CEO instead of guessing.
 - One sentence on the safety net that caught a real problem: in the first real run, the fact-checker flagged "he asked 16 days ago" as unsupported, and it was rewritten before the PDF.
 
