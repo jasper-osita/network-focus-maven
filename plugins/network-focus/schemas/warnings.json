@@ -1,0 +1,11 @@
+{
+  "title": "Data warnings written by load_roster.py (code, not the model)",
+  "type": "object",
+  "required": ["warnings"],
+  "properties": {
+    "warnings": {"type": "array", "items": {
+      "type": "object", "required": ["code", "severity", "message", "rows"],
+      "properties": {"code": {"type": "string"}, "severity": {"type": "string", "enum": ["block", "warn", "info"]},
+                     "message": {"type": "string"}, "rows": {"type": "array", "items": {"type": "integer"}}}}}
+  }
+}

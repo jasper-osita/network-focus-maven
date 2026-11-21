@@ -1,0 +1,28 @@
+{
+  "title": "goal-scout output for ONE goal",
+  "type": "object",
+  "required": ["goal_id", "candidates", "concerns"],
+  "properties": {
+    "goal_id": {"type": "integer"},
+    "candidates": {
+      "type": "array", "maxItems": 6,
+      "description": "Best people for this goal, best first",
+      "items": {
+        "type": "object",
+        "required": ["row_id", "name", "fit", "move", "risk", "evidence", "confidence", "timing"],
+        "properties": {
+          "row_id": {"type": "integer"},
+          "name": {"type": "string", "minLength": 1},
+          "fit": {"type": "string", "minLength": 1, "description": "Why this person matters for this goal"},
+          "move": {"type": "string", "minLength": 1},
+          "risk": {"type": "string", "minLength": 1},
+          "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+          "timing": {"type": "string", "enum": ["now", "later"], "description": "later = notes ask her to wait"}
+        }
+      }
+    },
+    "concerns": {"type": "array", "items": {"type": "string"},
+                 "description": "People mentioned but missing from the roster, rows that contradict themselves, etc."}
+  }
+}
