@@ -2,7 +2,7 @@
 name: brief
 description: Make this week's Network Focus brief for the CEO. It picks the 3 to 5 people she should invest in this week, the dormant relationships worth reviving, and the data problems to check. Use when asked for the weekly brief, the network brief, network focus, or who the CEO should reach out to this week.
 argument-hint: "[path to spreadsheet, optional]"
-allowed-tools: Read, Write, Bash(uv run *), Bash(/opt/homebrew/bin/uv run *), Bash(~/.local/bin/uv run *), Agent, Task
+allowed-tools: Read, Write, Edit, Bash(uv run *), Bash(/opt/homebrew/bin/uv run *), Bash(~/.local/bin/uv run *), Agent, Task
 ---
 
 # Network Focus brief
@@ -21,7 +21,7 @@ It prints one line of JSON. Call its `work_dir` WORK.
 
 ## 2. Review each goal in parallel
 
-Launch the `network-focus:goal-scout` agent once for every goal in roster.json `goals`, **all in a single message** so they run at the same time. Give each one this prompt:
+Launch the `network-focus:goal-scout` agent once for every goal in roster.json `goals`, **all in a single message** so they run at the same time. Set each launch's description to `Goal <id>: <title>`, because it's shown to her as progress. Give each one this prompt:
 
 ```
 Goal id: <id>
@@ -48,6 +48,11 @@ Read every scout output, then decide across all goals using these rules:
 6. Leave out contacts with no goal link, contacts with strength 1 and no context (unless marked low-confidence), and contacts whose notes advise against reaching out.
 7. No one appears twice. The dormant section lists 2–3 people at 60+ days who are not already top picks.
 8. Each move is one concrete action this week, through a named channel, with the reason it fits.
+
+Tie-breakers:
+- If one goal would take more than half of the focus picks while another goal has only one, see whether a strong-but-dormant pick could go in the dormant section instead. That frees a focus slot for the under-covered goal's best open loop.
+- Every move contains a specific ask: an intro to whom, a meeting about what, an answer to which question. "Check in" or "keep warm" isn't a move.
+- Write so the CEO can act in five minutes. Use one idea per sentence. Use first names instead of "he" or "she" whenever two people could be meant, and call the CEO "the CEO". Don't describe a person or organization in ways their row doesn't support.
 
 Write `WORK/brief.json` so it follows `${CLAUDE_PLUGIN_ROOT}/schemas/brief.json` exactly:
 - `week_of`: copy roster.json `source.week_of`.

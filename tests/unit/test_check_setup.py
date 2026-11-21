@@ -33,6 +33,7 @@ def test_healthy_workspace(home):
     assert all(v == "ok" for k, v in s.items() if k not in ("Claude command-line tool", "Network Focus page"))
     assert s["Network Focus page"] == "info"
     assert "3 goals" in next(x.detail for x in r if x.name == "goals.md")
+    assert "saved today" in next(x.detail for x in r if x.name == "Spreadsheet in inbox")
 
 
 def test_missing_goals_fails_with_fix(home):

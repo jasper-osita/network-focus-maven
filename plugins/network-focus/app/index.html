@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network Focus</title>
+<style>
+  :root {
+    --bg: #f7f4ee; --card: #ffffff; --ink: #2b2b2b; --muted: #6b6b6b; --navy: #1f2a44;
+    --gold: #b08d57; --line: #e6dfd2; --beige: #f3ebdd; --ok: #2f6b45; --bad: #a33a2b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15181f; --card: #1d212b; --ink: #e8e4dc; --muted: #a29d93; --navy: #c9d3ea;
+            --gold: #d2b07a; --line: #2e3442; --beige: #2a2620; --ok: #7cc49a; --bad: #ef8f80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { margin: 0; font-size: 28px; color: var(--navy); letter-spacing: -0.01em; }
+  .sub { margin: 4px 0 28px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  label { display: block; font-weight: 600; margin-bottom: 8px; }
+  select { width: 100%; padding: 10px; font: inherit; border: 1px solid var(--line); border-radius: 8px;
+           background: var(--card); color: var(--ink); }
+  .drop { margin-top: 12px; padding: 14px; border: 1.5px dashed var(--line); border-radius: 8px;
+          color: var(--muted); text-align: center; font-size: 14px; }
+  .drop.over { border-color: var(--gold); background: var(--beige); color: var(--ink); }
+  button { font: inherit; cursor: pointer; border-radius: 10px; }
+  .primary { width: 100%; padding: 16px; font-size: 18px; font-weight: 600; border: 0;
+             background: var(--navy); color: var(--card); }
+  .primary:disabled { opacity: 0.55; cursor: wait; }
+  .secondary { padding: 8px 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  #steps li { padding: 6px 0; display: flex; gap: 10px; }
+  #steps li::before { content: "✓"; color: var(--ok); font-weight: 700; }
+  #steps li.now::before { content: "…"; color: var(--gold); }
+  .result-ok a { display: inline-block; margin-top: 4px; padding: 12px 18px; border-radius: 10px;
+                 background: var(--gold); color: #1d1d1d; font-weight: 600; text-decoration: none; }
+  .result-bad { border-left: 4px solid var(--bad); padding-left: 12px; }
+  .checks li { padding: 8px 0; border-top: 1px solid var(--line); }
+  .checks li:first-child { border-top: 0; }
+  .fix { color: var(--muted); font-size: 14px; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .briefs a { color: var(--navy); }
+  .muted { color: var(--muted); font-size: 14px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Network Focus</h1>
+  <p class="sub">The CEO's weekly brief: who to invest time in this week, and why.</p>
+
+  <section class="card">
+    <label for="file">This week's spreadsheet</label>
+    <select id="file"><option>Loading…</option></select>
+    <div class="drop" id="drop">Drag a new spreadsheet here to add it (.xlsx or .csv)</div>
+  </section>
+
+  <button class="primary" id="go">Generate this week's brief</button>
+  <p class="muted" id="hint">Takes about 3 minutes. You can leave this page open and come back.</p>
+
+  <section class="card" id="progress" hidden>
+    <ul id="steps"></ul>
+    <div id="result"></div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <strong>Something not working?</strong>
+      <button class="secondary" id="check">Check setup</button>
+    </div>
+    <ul class="checks" id="checks"></ul>
+  </section>
+
+  <section class="card briefs">
+    <strong>Past briefs</strong>
+    <ul id="briefs" class="muted"></ul>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function refresh() {
+  const r = await fetch("/api/status");
+  if (!r.ok) { document.body.innerHTML = "<main><p>Open Network Focus from the link on your Desktop.</p></main>"; return; }
+  const s = await r.json();
+  $("file").innerHTML = s.inbox.length
+    ? s.inbox.map((f, i) => `<option value="${esc(f.name)}">${esc(f.name)} — saved ${esc(f.modified)}${i === 0 ? " (newest)" : ""}</option>`).join("")
+    : `<option value="">No spreadsheet yet. Drag one into the box below.</option>`;
+  $("briefs").innerHTML = s.briefs.length
+    ? s.briefs.map((b) => `<li><a href="${esc(b.url)}" target="_blank">${esc(b.name)}</a></li>`).join("")
+    : "<li>None yet.</li>";
+  $("go").disabled = s.running || !s.inbox.length;
+}
+
+const drop = $("drop");
+["dragenter", "dragover"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", async (ev) => {
+  const f = ev.dataTransfer.files[0];
+  if (!f) return;
+  const r = await fetch("/api/upload", { method: "POST", headers: { "X-Filename": f.name }, body: f });
+  const j = await r.json();
+  drop.textContent = r.ok ? `Added ${j.saved}.` : j.message;
+  await refresh();
+});
+
+$("go").addEventListener("click", async () => {
+  $("go").disabled = true;
+  $("progress").hidden = false;
+  $("steps").innerHTML = "<li class='now'>Starting…</li>";
+  $("result").innerHTML = "";
+  const r = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" },
+                                       body: JSON.stringify({ file: $("file").value }) });
+  const j = await r.json();
+  if (!r.ok) { $("result").innerHTML = `<p class="result-bad">${esc(j.message)}</p>`; return refresh(); }
+  const es = new EventSource(`/api/run/${j.run_id}/events`);
+  const steps = [];
+  es.onmessage = (m) => {
+    const ev = JSON.parse(m.data);
+    if (ev.step) {
+      steps.push(ev.step);
+      $("steps").innerHTML = steps.map((s, i) => `<li class="${i === steps.length - 1 ? "now" : ""}">${esc(s)}</li>`).join("");
+    }
+    if (ev.status) {
+      es.close();
+      $("steps").querySelectorAll("li").forEach((li) => li.classList.remove("now"));
+      $("result").innerHTML = ev.status === "done"
+        ? `<div class="result-ok"><p><strong>The brief is ready.</strong></p><a href="${esc(ev.pdf_url)}" target="_blank">Open PDF</a></div>`
+        : `<div class="result-bad"><p><strong>The brief couldn't be made.</strong></p><p>${esc(ev.message)}</p>
+           <p class="fix">If you're not sure what to do, click Check setup below.</p></div>`;
+      refresh();
+    }
+  };
+  es.onerror = () => { es.close(); refresh(); };
+});
+
+$("check").addEventListener("click", async () => {
+  $("checks").innerHTML = "<li class='muted'>Checking…</li>";
+  const r = await fetch("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  const j = await r.json();
+  const icon = { ok: "✅", fail: "❌", info: "ℹ️" };
+  $("checks").innerHTML = j.results.map((c) => `<li>${icon[c.status] || ""} <strong>${esc(c.name)}:</strong> ${esc(c.detail)}
+    ${c.fix ? `<div class="fix">Fix: ${esc(c.fix)}</div>` : ""}</li>`).join("");
+});
+
+refresh();
+</script>
+</body>
+</html>

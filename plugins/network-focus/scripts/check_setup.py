@@ -69,7 +69,8 @@ def setup_checks(home: Path, port: int = 8765) -> list[CheckResult]:
     try:
         path, _ = pick_roster(ws, None)
         age = (date.today() - file_date(path)).days
-        res.append(CheckResult("Spreadsheet in inbox", "ok", f"{path.name}, saved {age} days ago."))
+        when = "today" if age <= 0 else "yesterday" if age == 1 else f"{age} days ago"
+        res.append(CheckResult("Spreadsheet in inbox", "ok", f"{path.name}, saved {when}."))
         try:
             contacts, _ = read_roster(path)
             res.append(CheckResult("Spreadsheet columns", "ok", f"{len(contacts)} contacts, all 10 columns found."))
