@@ -1,0 +1,12 @@
+{
+  "name": "network-focus",
+  "description": "Network Focus: a weekly relationship brief for a CEO, built as a Claude Code plugin",
+  "owner": {"name": "Jasper Osita"},
+  "plugins": [
+    {
+      "name": "network-focus",
+      "source": "./plugins/network-focus",
+      "description": "Weekly Network Focus brief: who the CEO should invest time in this week, and why"
+    }
+  ]
+}
