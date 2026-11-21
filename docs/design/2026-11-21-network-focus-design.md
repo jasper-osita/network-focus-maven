@@ -73,7 +73,7 @@ The roster has 25 rows and 10 columns. The test cases are already planted in it:
 The product is a Claude Code **plugin** in a public GitHub repo, and the repo is also its own marketplace. Install:
 
 ```
-/plugin marketplace add <github-user>/network-focus
+/plugin marketplace add jasper-osita/network-focus-maven
 /plugin install network-focus@network-focus
 ```
 
