@@ -68,4 +68,4 @@ load_roster.py → goal-scout × N (parallel) → main skill picks → validate_
 - **The real roster's brief** includes Diana Chen and Marcus Wei, excludes the decoys (James Park, Jensen Carlsson, Jensen Huang, Demis Hassabis, Aaron Goldsmith), and flags a16z, "Patrick at Greylock" and ARC.
 - **Zero invented names or quotes**, and a **grader score of ≥4/5** on grounding and move specificity.
 - **A fresh install from the handoff doc alone works** on a real Mac.
-- **Measured:** about 2–3 minutes and about $1.20 of Claude usage per weekly run.
+- **Result (Nov 21):** 6/6 cases pass, grader grounding 4 and specificity 4 on every brief, 107–142 s and about $1.10 per weekly run (`tests/evals/results/2026-11-21.md`).
