@@ -9,7 +9,7 @@ allowed-tools: Read, Write, Edit, Bash(uv run *), Bash(/opt/homebrew/bin/uv run 
 
 You're making the CEO's weekly Network Focus brief for her chief of staff, who isn't technical. Talk to her in plain English. Never show her JSON, code or the contents of working files. Follow these steps in order.
 
-Every script lives in `${CLAUDE_PLUGIN_ROOT}/scripts`. Run each one with `uv run "<path>"`. If `uv` isn't found, try `/opt/homebrew/bin/uv run` and then `~/.local/bin/uv run`. If none of them work, tell her: "I need a small tool called uv that isn't installed yet. Type /network-focus:check and follow the fix it shows." Then stop.
+Every script lives in `${CLAUDE_PLUGIN_ROOT}/scripts`. Run each one with `uv run "<path>"`, exactly as written below: one command per Bash call, starting with `uv run`. Don't add `cd`, `&&`, pipes or other commands, because only `uv run` commands are pre-approved and anything else will be refused. To look at a file, use the Read tool, never `cat` or `ls`. If a command is refused, run it again exactly as written once before deciding anything is wrong. If `uv` isn't found, try `/opt/homebrew/bin/uv run` and then `~/.local/bin/uv run`. If none of them work, tell her: "I need a small tool called uv that isn't installed yet. Type /network-focus:check and follow the fix it shows." Then stop.
 
 ## 1. Load and check the data
 
