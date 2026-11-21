@@ -21,7 +21,7 @@ It prints one line of JSON. Call its `work_dir` WORK.
 
 ## 2. Review each goal in parallel
 
-Launch the `network-focus:goal-scout` agent once for every goal in roster.json `goals`, **all in a single message** so they run at the same time. Set each launch's description to `Goal <id>: <title>`, because it's shown to her as progress. Give each one this prompt:
+Launch the `network-focus:goal-scout` agent once for every goal in roster.json `goals`, **all in a single message** so they run at the same time. Launch them in the foreground (don't set `run_in_background`), so their results come straight back to you. Set each launch's description to `Goal <id>: <title>`, because it's shown to her as progress. Give each one this prompt:
 
 ```
 Goal id: <id>
@@ -76,7 +76,7 @@ If it lists problems, fix exactly what they say in brief.json and run it again. 
 
 Run: `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/validate_brief.py" cited-rows WORK/brief.json --roster WORK/roster.json --out WORK/cited-rows.json`
 
-Then launch `network-focus:fact-checker` with:
+Then launch `network-focus:fact-checker` in the foreground with:
 
 ```
 Brief: WORK/brief.json
