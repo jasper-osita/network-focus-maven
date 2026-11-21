@@ -1,0 +1,16 @@
+[project]
+name = "network-focus-dev"
+version = "0.1.0"
+description = "Dev/test environment for the network-focus Claude Code plugin"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest", "openpyxl", "reportlab"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["plugins/network-focus/scripts", "plugins/network-focus/app", "tests/unit"]
+testpaths = ["tests/unit"]
