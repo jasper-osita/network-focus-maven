@@ -207,3 +207,17 @@ def test_index_has_both_tabs(server):
     assert status == 200 and "This week" in page and "Make the brief" in page
     assert 'id="ring"' in page and "Copy message" in page and "Generate this week" in page
     assert 'id="heroMessage"' in page and "Preview" in page
+
+
+def test_quit_endpoint_stops_server(server):
+    assert call(server, "POST", "/api/quit", origin=False, body={})[0] == 403
+    assert call(server, "POST", "/api/quit", body={})[0] == 200
+    import time
+    deadline = time.time() + 3
+    while time.time() < deadline:
+        try:
+            call(server, "GET", "/health", cookie=False)
+            time.sleep(0.1)
+        except OSError:
+            return
+    raise AssertionError("server still answering after /api/quit")

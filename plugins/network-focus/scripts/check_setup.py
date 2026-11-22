@@ -21,7 +21,7 @@ from nf_core.workspace import Workspace, ensure_workspace, file_date, nf_home, p
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates" / "goals.md"
 
 CLAUDE_PATHS = ["/opt/homebrew/bin/claude", "/usr/local/bin/claude", str(Path.home() / ".local/bin/claude"),
-                str(Path.home() / ".claude/local/claude")]
+                str(Path.home() / ".local/bin/claude.exe"), str(Path.home() / ".claude/local/claude")]
 
 
 @dataclass
@@ -44,7 +44,7 @@ def _tools(port: int) -> list[CheckResult]:
         running = False
     out.append(CheckResult("Network Focus page", "info",
                            "Running." if running else
-                           "Not running. That only matters if you use the page; restart your Mac or run "
+                           "Not running. That only matters if you use the page; restart the computer or run "
                            "/network-focus:setup-app to start it."))
     return out
 

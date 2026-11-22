@@ -31,7 +31,7 @@ def pdf_safe(text: str) -> str:
 WIDE_FONTS = ("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", "/Library/Fonts/Arial Unicode.ttf",
               "/System/Library/Fonts/Supplemental/Arial.ttf", "/System/Library/Fonts/Supplemental/Songti.ttc",
               "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
-              "C:/Windows/Fonts/arial.ttf")
+              "C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/msyh.ttc")
 _LOADED: list[tuple[str, set]] = []
 _STATE = {"next": 0, "cjk": None, "cjk_tried": False}
 

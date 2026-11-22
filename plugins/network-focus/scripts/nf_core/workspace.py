@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -13,9 +14,44 @@ OTHER_SPREADSHEETS = (".xls", ".xlsm", ".xlsb", ".numbers", ".ods")
 STALE_DAYS = 7
 
 
+_FOLDER_IDS = {"Documents": "{FDD39AD0-238F-46AF-ADB4-6C85480369C7}", "Desktop": "{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}"}
+
+
+def _known_folder(name: str) -> Path | None:
+    """A Windows known folder (follows OneDrive redirection of Documents/Desktop). None elsewhere or on failure."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        import uuid
+        from ctypes import wintypes
+
+        class GUID(ctypes.Structure):
+            _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD), ("Data3", wintypes.WORD),
+                        ("Data4", ctypes.c_ubyte * 8)]
+
+        u = uuid.UUID(_FOLDER_IDS[name])
+        guid = GUID(u.time_low, u.time_mid, u.time_hi_version, (ctypes.c_ubyte * 8)(*u.bytes[8:]))
+        out = ctypes.c_wchar_p()
+        if ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(out)) != 0:
+            return None
+        try:
+            return Path(out.value)
+        finally:
+            ctypes.windll.ole32.CoTaskMemFree(out)
+    except Exception:
+        return None
+
+
+def documents_dir() -> Path:
+    if sys.platform == "win32":
+        return _known_folder("Documents") or Path.home() / "Documents"
+    return Path.home() / "Documents"
+
+
 def nf_home() -> Path:
     env = os.environ.get("NF_HOME")
-    return Path(env).expanduser() if env else Path.home() / "Documents" / "Network Focus"
+    return Path(env).expanduser() if env else documents_dir() / "Network Focus"
 
 
 class Workspace:

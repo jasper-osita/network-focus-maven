@@ -74,3 +74,41 @@ def test_background_permissions_scoped(home):
     assert any(r.startswith("Read(/") and "Documents/Network" in r for r in rules)
     assert any(r.startswith("Edit(/") and r.endswith(".work/**)") for r in rules)
     assert any(r.startswith('Bash(uv run "') and "/scripts/" in r for r in rules)
+
+
+WIN_STARTUP = ("AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+
+
+def test_windows_layout(home):
+    r = install_app.install(PLUGIN, home, launch=False, system="win32")
+    app = home / "AppData" / "Local" / "Network Focus"
+    assert (app / "server.py").exists() and (app / "scripts" / "check_setup.py").exists()
+    vbs = home.joinpath(*WIN_STARTUP, "Network Focus.vbs")
+    assert vbs.exists() and r["startup"] == str(vbs)
+    shortcut = home / "Desktop" / "Network Focus.url"
+    assert shortcut.read_text().startswith("[InternetShortcut]") and "URL=http://127.0.0.1:8765/?t=" in shortcut.read_text()
+    assert not (home / "Library").exists() and (home / "Documents" / "Network Focus" / "goals.md").exists()
+    cfg = json.loads((app / "config.json").read_text())
+    tools = cfg["claude_args"][cfg["claude_args"].index("--allowedTools") + 1].split(",")
+    assert "Read(./**)" in tools and "Edit(./.work/**)" in tools and not any(t.startswith("Read(//") for t in tools)
+    assert any(t.startswith('Bash(uv run "') and t.endswith('/scripts/*)') for t in tools)
+
+
+def test_windows_layout_idempotent(home):
+    install_app.install(PLUGIN, home, launch=False, system="win32")
+    app = home / "AppData" / "Local" / "Network Focus"
+    token = json.loads((app / "config.json").read_text())["token"]
+    install_app.install(PLUGIN, home, launch=False, system="win32")
+    assert json.loads((app / "config.json").read_text())["token"] == token
+    assert [p.name for p in (home / "Desktop").iterdir()] == ["Network Focus.url"]
+    assert [p.name for p in home.joinpath(*WIN_STARTUP).iterdir()] == ["Network Focus.vbs"]
+
+
+def test_vbs_quotes_paths(tmp_path):
+    home = tmp_path / "Mária Ñoño"
+    install_app.install(PLUGIN, home, launch=False, system="win32")
+    raw = home.joinpath(*WIN_STARTUP, "Network Focus.vbs").read_bytes()
+    assert raw.startswith(b"\xff\xfe"), "UTF-16 with BOM so WSH reads non-ASCII paths"
+    text = raw.decode("utf-16")
+    server = home / "AppData" / "Local" / "Network Focus" / "server.py"
+    assert f'""{server}""' in text and ", 0, False" in text

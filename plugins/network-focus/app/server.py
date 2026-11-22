@@ -276,6 +276,10 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                 return self._json(400, {"message": "That request wasn't valid. Reload the page and try again."})
             if url.path == "/api/done":
                 return self._done(body)
+            if url.path == "/api/quit":  # the installer restarts the page this way on Windows (no launchctl there)
+                self._json(200, {"ok": True})
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
+                return
             if url.path == "/api/run":
                 file = Path(body.get("file") or "").name or None
                 if file and not (cfg.nf_home / "inbox" / file).is_file():

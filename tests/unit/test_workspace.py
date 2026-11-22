@@ -136,3 +136,18 @@ def test_old_excel_format_is_named(home):
         pick_roster(Workspace(home), None)
     assert e.value.issue.code == "UNSUPPORTED_FILE" and "roster.xls" in e.value.issue.message
     assert ".xlsx or .csv" in e.value.issue.message
+
+
+def test_documents_dir_uses_known_folder_on_windows(monkeypatch, tmp_path):
+    import nf_core.workspace as ws
+    monkeypatch.delenv("NF_HOME", raising=False)
+    monkeypatch.setattr(ws.sys, "platform", "win32")
+    monkeypatch.setattr(ws, "_known_folder", lambda name: tmp_path / "OneDrive" / "Documents" if name == "Documents" else None)
+    assert ws.nf_home() == tmp_path / "OneDrive" / "Documents" / "Network Focus"
+
+
+def test_documents_dir_falls_back_without_known_folder(monkeypatch):
+    import nf_core.workspace as ws
+    monkeypatch.setattr(ws.sys, "platform", "win32")
+    monkeypatch.setattr(ws, "_known_folder", lambda name: None)
+    assert ws.documents_dir() == Path.home() / "Documents"
