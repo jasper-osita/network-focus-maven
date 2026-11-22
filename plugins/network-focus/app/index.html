@@ -6,89 +6,274 @@
 <title>Network Focus</title>
 <style>
   :root {
-    --bg: #f7f4ee; --card: #ffffff; --ink: #2b2b2b; --muted: #6b6b6b; --navy: #1f2a44;
-    --gold: #b08d57; --line: #e6dfd2; --beige: #f3ebdd; --ok: #2f6b45; --bad: #a33a2b;
+    --bg: #f7f4ee; --card: #ffffff; --ink: #2b2b2b; --muted: #6b6b6b; --navy: #1f2a44; --gold: #b08d57;
+    --line: #e6dfd2; --soft: #f0ebe2; --beige: #f3ebdd; --chip: #6b5330; --ok: #2f6b45; --bad: #a33a2b; --on-navy: #ffffff;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #15181f; --card: #1d212b; --ink: #e8e4dc; --muted: #a29d93; --navy: #c9d3ea;
-            --gold: #d2b07a; --line: #2e3442; --beige: #2a2620; --ok: #7cc49a; --bad: #ef8f80; }
+    :root { --bg: #15181f; --card: #1d212b; --ink: #e8e4dc; --muted: #a29d93; --navy: #c9d3ea; --gold: #d2b07a;
+            --line: #2e3442; --soft: #262b37; --beige: #2a2620; --chip: #e2c79a; --ok: #7cc49a; --bad: #ef8f80; --on-navy: #15181f; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink);
          font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
-  main { max-width: 640px; margin: 0 auto; padding: 40px 16px 64px; }
-  h1 { margin: 0; font-size: 28px; color: var(--navy); letter-spacing: -0.01em; }
-  .sub { margin: 4px 0 28px; color: var(--muted); }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-  label { display: block; font-weight: 600; margin-bottom: 8px; }
-  select { width: 100%; padding: 10px; font: inherit; border: 1px solid var(--line); border-radius: 8px;
-           background: var(--card); color: var(--ink); }
-  .drop { margin-top: 12px; padding: 14px; border: 1.5px dashed var(--line); border-radius: 8px;
-          color: var(--muted); text-align: center; font-size: 14px; }
-  .drop.over { border-color: var(--gold); background: var(--beige); color: var(--ink); }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
   button { font: inherit; cursor: pointer; border-radius: 10px; }
-  .primary { width: 100%; padding: 16px; font-size: 18px; font-weight: 600; border: 0;
-             background: var(--navy); color: var(--card); }
-  .primary:disabled { opacity: 0.55; cursor: wait; }
-  .secondary { padding: 8px 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
-  ul { list-style: none; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  .muted { color: var(--muted); font-size: 14px; }
+
+  /* header + tabs */
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .brand { font-weight: 700; color: var(--navy); font-size: 22px; line-height: 1.2; }
+  .score { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--line);
+           border-radius: 999px; padding: 6px 16px 6px 8px; }
+  #ring { width: 40px; height: 40px; transform: rotate(-90deg); }
+  #ring .track { stroke: var(--soft); } #ring .fill { stroke: var(--ok); transition: stroke-dasharray .3s; }
+  .score b { color: var(--ok); } .score span { color: var(--muted); font-size: 14px; }
+  nav { display: flex; gap: 6px; align-items: center; margin: 20px 0 22px; border-bottom: 1px solid var(--line); }
+  .tab { background: none; border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: 8px 4px 10px;
+         margin-right: 18px; color: var(--muted); font-weight: 600; }
+  .tab[aria-selected="true"] { color: var(--navy); border-bottom-color: var(--gold); }
+  #pdfLink { margin-left: auto; color: var(--navy); font-size: 14px; }
+
+  /* cards */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; margin-bottom: 16px; }
+  .banner { background: var(--beige); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 15px; }
+  .banner a { color: var(--navy); font-weight: 600; cursor: pointer; }
+  .hero { border-left: 6px solid var(--gold); padding: 28px 32px; }
+  .kicker { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  .hero h2 { margin: 6px 0 2px; font-size: 32px; color: var(--navy); line-height: 1.15; }
+  .chip { display: inline-block; background: var(--beige); color: var(--chip); border-radius: 6px; padding: 2px 10px;
+          font-size: 13px; font-weight: 600; margin-left: 8px; vertical-align: middle; }
+  .role { color: var(--muted); margin-bottom: 16px; }
+  .do { font-size: 21px; line-height: 1.38; margin: 0 0 8px; }
+  .why { color: var(--muted); margin: 0 0 20px; }
+  .primary { background: var(--navy); color: var(--on-navy); border: 0; padding: 12px 20px; font-weight: 600; }
+  .ghost { background: var(--card); color: var(--navy); border: 1px solid var(--line); padding: 12px 18px; margin-left: 8px; }
+  .ghost.on { border-color: var(--ok); color: var(--ok); }
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } .hero { padding: 22px; } .hero h2 { font-size: 26px; } }
+  h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--soft); }
+  .item:first-of-type { border-top: 0; }
+  .item input { width: 18px; height: 18px; accent-color: var(--navy); flex: none; }
+  .item .txt { flex: 1; } .item small { color: var(--muted); display: block; }
+  .item.done .txt { text-decoration: line-through; opacity: .55; }
+  .copy { border: 1px solid var(--line); background: var(--bg); color: var(--navy); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+  .q { padding: 8px 0; border-top: 1px solid var(--soft); font-size: 15px; } .q:first-of-type { border-top: 0; }
+  details summary { color: var(--gold); cursor: pointer; font-size: 14px; margin-top: 6px; }
+  .side h3 + .q { border-top: 0; } .side h3:not(:first-child) { margin-top: 18px; }
+
+  /* make-the-brief view */
+  .make { max-width: 640px; }
+  label.lbl { display: block; font-weight: 600; margin-bottom: 8px; }
+  select { width: 100%; padding: 10px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); }
+  .drop { margin-top: 12px; padding: 14px; border: 1.5px dashed var(--line); border-radius: 8px; color: var(--muted); text-align: center; font-size: 14px; }
+  .drop.over { border-color: var(--gold); background: var(--beige); color: var(--ink); }
+  .big { width: 100%; padding: 16px; font-size: 18px; }
+  .big:disabled { opacity: .55; cursor: wait; }
+  #steps { list-style: none; margin: 0; padding: 0; }
   #steps li { padding: 6px 0; display: flex; gap: 10px; }
   #steps li::before { content: "✓"; color: var(--ok); font-weight: 700; }
   #steps li.now::before { content: "…"; color: var(--gold); }
-  .result-ok a { display: inline-block; margin-top: 4px; padding: 12px 18px; border-radius: 10px;
-                 background: var(--gold); color: #1d1d1d; font-weight: 600; text-decoration: none; }
   .result-bad { border-left: 4px solid var(--bad); padding-left: 12px; }
-  .checks li { padding: 8px 0; border-top: 1px solid var(--line); }
-  .checks li:first-child { border-top: 0; }
-  .fix { color: var(--muted); font-size: 14px; }
+  .checks { list-style: none; margin: 0; padding: 0; } .checks li { padding: 8px 0; border-top: 1px solid var(--soft); }
+  .checks li:first-child { border-top: 0; } .fix { color: var(--muted); font-size: 14px; }
   .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .briefs a { color: var(--navy); }
-  .muted { color: var(--muted); font-size: 14px; }
-  [hidden] { display: none !important; }
+  .briefs { list-style: none; margin: 8px 0 0; padding: 0; } .briefs a { color: var(--navy); }
+
+  dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--ink); width: min(560px, 92vw); }
+  dialog textarea { width: 100%; height: 180px; font: inherit; padding: 10px; border: 1px solid var(--line); border-radius: 8px;
+                    background: var(--bg); color: var(--ink); margin: 8px 0 12px; }
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--navy); color: var(--on-navy);
+           padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Network Focus</h1>
-  <p class="sub">The CEO's weekly brief: who to invest time in this week, and why.</p>
-
-  <section class="card">
-    <label for="file">This week's spreadsheet</label>
-    <select id="file"><option>Loading…</option></select>
-    <div class="drop" id="drop">Drag a new spreadsheet here to add it (.xlsx or .csv)</div>
-  </section>
-
-  <button class="primary" id="go">Generate this week's brief</button>
-  <p class="muted" id="hint">Takes about 3 minutes. You can leave this page open and come back.</p>
-
-  <section class="card" id="progress" hidden>
-    <ul id="steps"></ul>
-    <div id="result"></div>
-  </section>
-
-  <section class="card">
-    <div class="row">
-      <strong>Something not working?</strong>
-      <button class="secondary" id="check">Check setup</button>
+  <div class="top">
+    <div><div class="brand">Network Focus</div><div class="muted" id="weekLabel">The CEO's weekly focus</div></div>
+    <div class="score" id="score" hidden>
+      <svg id="ring" viewBox="0 0 36 36" aria-hidden="true">
+        <circle class="track" cx="18" cy="18" r="15.915" fill="none" stroke-width="4"/>
+        <circle class="fill" id="ringFill" cx="18" cy="18" r="15.915" fill="none" stroke-width="4" stroke-linecap="round" stroke-dasharray="0 100"/>
+      </svg>
+      <div><b id="scoreText">0 of 0 done</b><br><span id="lastWeek"></span></div>
     </div>
-    <ul class="checks" id="checks"></ul>
+  </div>
+  <nav>
+    <button class="tab" id="tabWeek" aria-selected="true">This week</button>
+    <button class="tab" id="tabMake" aria-selected="false">Make the brief</button>
+    <a id="pdfLink" href="#" target="_blank" hidden>Open PDF ↗</a>
+  </nav>
+
+  <!-- THIS WEEK: the CEO dashboard -->
+  <section id="viewWeek">
+    <div class="banner" id="staleBanner" hidden></div>
+    <div class="banner" id="dataBanner" hidden></div>
+    <div class="card hero">
+      <div class="kicker">This week's #1</div>
+      <h2><span id="heroName"></span><span class="chip" id="heroGoal"></span></h2>
+      <div class="role" id="heroRole"></div>
+      <p class="do" id="heroMove"></p>
+      <p class="why" id="heroWhy"></p>
+      <button class="primary" id="heroCopy">Copy message</button><button class="ghost" id="heroDone">Mark done</button>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3>Also this week</h3><div id="others"></div>
+        <h3 style="margin-top:18px" id="dormantTitle">Worth a note · gone quiet</h3><div id="dormant"></div>
+      </div>
+      <div class="card side">
+        <h3 id="qTitle">Questions for you</h3><div id="questions"></div>
+        <h3 id="quietTitle">Going quiet soon</h3><div id="quiet"></div>
+      </div>
+    </div>
   </section>
 
-  <section class="card briefs">
-    <strong>Past briefs</strong>
-    <ul id="briefs" class="muted"></ul>
+  <!-- MAKE THE BRIEF: the chief of staff's controls -->
+  <section id="viewMake" class="make" hidden>
+    <p class="banner" id="emptyNote" hidden>No brief yet this week. Add this week's spreadsheet and click Generate.</p>
+    <div class="card">
+      <label class="lbl" for="file">This week's spreadsheet</label>
+      <select id="file"><option>Loading…</option></select>
+      <div class="drop" id="drop">Drag a new spreadsheet here to add it (.xlsx or .csv)</div>
+    </div>
+    <button class="primary big" id="go">Generate this week's brief</button>
+    <p class="muted" id="hint">Takes about 3 minutes. You can leave this page open and come back.</p>
+    <div class="card" id="progress" hidden><ul id="steps"></ul><div id="result"></div></div>
+    <div class="card">
+      <div class="row"><strong>Something not working?</strong><button class="ghost" id="check" style="margin:0">Check setup</button></div>
+      <ul class="checks" id="checks"></ul>
+    </div>
+    <div class="card"><strong>Past briefs</strong><ul id="briefs" class="briefs muted"></ul></div>
   </section>
 </main>
+
+<dialog id="copyDialog">
+  <strong>Copy this message</strong>
+  <p class="muted" style="margin:4px 0 0">It's selected. Press ⌘C, then paste it into your email.</p>
+  <textarea id="copyText" readonly></textarea>
+  <button class="primary" id="copyClose">Done</button>
+</dialog>
+<div class="toast" id="toast">Message copied. Paste it into your email.</div>
+
 <script>
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const OOPS = "Something went wrong talking to the Network Focus page. Restart the Mac, or type /network-focus:setup-app in the Claude app.";
+const fmtWeek = (iso) => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+let dash = null;
 
+/* ---------- tabs ---------- */
+function show(view) {
+  const week = view === "week";
+  $("viewWeek").hidden = !week; $("viewMake").hidden = week;
+  $("tabWeek").setAttribute("aria-selected", String(week)); $("tabMake").setAttribute("aria-selected", String(!week));
+}
+$("tabWeek").addEventListener("click", () => dash && !dash.empty ? show("week") : show("make"));
+$("tabMake").addEventListener("click", () => show("make"));
+
+/* ---------- copy ---------- */
+function copy(text) {
+  const fallback = () => { $("copyText").value = text; $("copyDialog").showModal(); $("copyText").select(); };
+  if (!navigator.clipboard) return fallback();
+  navigator.clipboard.writeText(text).then(() => {
+    $("toast").classList.add("show"); setTimeout(() => $("toast").classList.remove("show"), 1800);
+  }, fallback);
+}
+$("copyClose").addEventListener("click", () => $("copyDialog").close());
+
+/* ---------- dashboard ---------- */
+async function loadDashboard() {
+  try {
+    const r = await fetch("/api/dashboard");
+    if (r.status === 401) { document.body.innerHTML = "<main><p>Open Network Focus from the link on your Desktop.</p></main>"; return; }
+    dash = await r.json();
+  } catch (e) { dash = { empty: true }; $("emptyNote").textContent = OOPS; }
+  renderDashboard();
+}
+
+function renderProgress() {
+  const p = dash.progress, pct = p.total ? Math.round(100 * p.done / p.total) : 0;
+  $("score").hidden = false;
+  $("ringFill").setAttribute("stroke-dasharray", `${pct} 100`);
+  $("ringFill").style.opacity = pct ? 1 : 0;  // a round line cap draws a dot at 0%
+  $("scoreText").textContent = `${p.done} of ${p.total} done`;
+  $("lastWeek").textContent = p.last_week ? `Last week ${p.last_week.done}/${p.last_week.total}` : "This week's moves";
+}
+
+function itemRow(p) {
+  const sub = p.days !== undefined ? `${esc(p.role_company)} · ${esc(p.days)} days quiet` : esc(p.role_company);
+  return `<div class="item ${p.done ? "done" : ""}">
+    <input type="checkbox" data-row="${p.row_id}" ${p.done ? "checked" : ""} aria-label="Done: ${esc(p.name)}">
+    <div class="txt"><b>${esc(p.name)}</b> · ${sub}<small>${esc(p.move)}</small></div>
+    ${p.message ? `<button class="copy" data-copy="${p.row_id}">Copy</button>` : ""}</div>`;
+}
+
+function renderDashboard() {
+  if (!dash || dash.empty) { $("score").hidden = true; $("pdfLink").hidden = true; $("emptyNote").hidden = false; show("make"); return; }
+  $("emptyNote").hidden = true;
+  $("weekLabel").textContent = `Week of ${fmtWeek(dash.week_of)}`;
+  $("pdfLink").hidden = false; $("pdfLink").href = dash.pdf_url;
+  $("staleBanner").hidden = !dash.stale;
+  $("staleBanner").innerHTML = `This is the brief from the week of ${esc(fmtWeek(dash.week_of))}. <a id="makeNew">Make this week's →</a>`;
+  if (dash.stale) $("makeNew").addEventListener("click", () => show("make"));
+  $("dataBanner").hidden = !dash.banner.length;
+  $("dataBanner").textContent = dash.banner.length ? `Data warning: ${dash.banner.join(" ")}` : "";
+
+  const t = dash.top;
+  $("heroName").textContent = t.name;
+  $("heroGoal").textContent = t.goals.join(" + "); $("heroGoal").hidden = !t.goals.length;
+  $("heroRole").textContent = t.role_company;
+  $("heroMove").textContent = t.move;
+  $("heroWhy").textContent = t.why;
+  $("heroCopy").hidden = !t.message;
+  $("heroDone").textContent = t.done ? "Done ✓" : "Mark done";
+  $("heroDone").classList.toggle("on", t.done);
+
+  $("others").innerHTML = dash.others.map(itemRow).join("") || `<p class="muted">Just the one this week.</p>`;
+  $("dormant").innerHTML = dash.dormant.map(itemRow).join("");
+  $("dormantTitle").hidden = !dash.dormant.length;
+  const qs = dash.questions;
+  $("qTitle").textContent = qs.length ? `${qs.length} question${qs.length === 1 ? "" : "s"} for you` : "No questions this week";
+  $("questions").innerHTML = qs.slice(0, 2).map((q) => `<div class="q">${esc(q)}</div>`).join("") +
+    (qs.length > 2 ? `<details><summary>+ ${qs.length - 2} more</summary>${qs.slice(2).map((q) => `<div class="q">${esc(q)}</div>`).join("")}</details>` : "");
+  $("quiet").innerHTML = dash.going_quiet.map((g) => `<div class="q">${esc(g.name)} · ${esc(g.days_since_contact)} days</div>`).join("");
+  $("quietTitle").hidden = !dash.going_quiet.length;
+  renderProgress();
+  show("week");
+}
+
+const everyone = () => [dash.top, ...dash.others, ...dash.dormant];
+document.addEventListener("click", (e) => {
+  const c = e.target.closest("[data-copy]");
+  if (c) { const p = everyone().find((x) => String(x.row_id) === c.dataset.copy); if (p) copy(p.message); }
+});
+$("heroCopy").addEventListener("click", () => copy(dash.top.message));
+$("heroDone").addEventListener("click", () => toggle(dash.top.row_id, !dash.top.done));
+document.addEventListener("change", (e) => {
+  if (e.target.matches("input[data-row]")) toggle(Number(e.target.dataset.row), e.target.checked);
+});
+
+async function toggle(rowId, done) {
+  try {
+    const r = await fetch("/api/done", { method: "POST", headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ row_id: rowId, done }) });
+    if (!r.ok) return loadDashboard();
+    const j = await r.json();
+    const p = everyone().find((x) => x.row_id === rowId);
+    if (p) p.done = done;
+    dash.progress = j.progress;
+    renderDashboard();
+  } catch (e) { loadDashboard(); }
+}
+
+/* ---------- make the brief ---------- */
 async function refresh() {
   let r;
   try { r = await fetch("/api/status"); } catch (e) { $("hint").textContent = OOPS; return; }
-  if (!r.ok) { document.body.innerHTML = "<main><p>Open Network Focus from the link on your Desktop.</p></main>"; return; }
+  if (!r.ok) return;
   const s = await r.json();
   $("file").innerHTML = s.inbox.length
     ? s.inbox.map((f, i) => `<option value="${esc(f.name)}">${esc(f.name)} — saved ${esc(f.modified)}${i === 0 ? " (newest)" : ""}</option>`).join("")
@@ -130,7 +315,7 @@ $("go").addEventListener("click", async () => {
   if (!r.ok) { $("result").innerHTML = `<p class="result-bad">${esc(j.message)}</p>`; return refresh(); }
   const es = new EventSource(`/api/run/${j.run_id}/events`);
   const steps = [];
-  es.onmessage = (m) => {
+  es.onmessage = async (m) => {
     const ev = JSON.parse(m.data);
     if (ev.step) {
       steps.push(ev.step);
@@ -139,10 +324,13 @@ $("go").addEventListener("click", async () => {
     if (ev.status) {
       es.close();
       $("steps").querySelectorAll("li").forEach((li) => li.classList.remove("now"));
-      $("result").innerHTML = ev.status === "done"
-        ? `<div class="result-ok"><p><strong>The brief is ready.</strong></p><a href="${esc(ev.pdf_url)}" target="_blank">Open PDF</a></div>`
-        : `<div class="result-bad"><p><strong>The brief couldn't be made.</strong></p><p>${esc(ev.message)}</p>
-           <p class="fix">If you're not sure what to do, click Check setup below.</p></div>`;
+      if (ev.status === "done") {
+        $("result").innerHTML = `<p><strong>The brief is ready.</strong> <a href="${esc(ev.pdf_url)}" target="_blank">Open PDF</a></p>`;
+        await loadDashboard();
+      } else {
+        $("result").innerHTML = `<div class="result-bad"><p><strong>The brief couldn't be made.</strong></p><p>${esc(ev.message)}</p>
+          <p class="fix">If you're not sure what to do, click Check setup below.</p></div>`;
+      }
       refresh();
     }
   };
@@ -165,6 +353,7 @@ $("check").addEventListener("click", async () => {
     ${c.fix ? `<div class="fix">Fix: ${esc(c.fix)}</div>` : ""}</li>`).join("");
 });
 
+loadDashboard();
 refresh();
 </script>
 </body>

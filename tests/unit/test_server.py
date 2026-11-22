@@ -197,3 +197,10 @@ def test_done_requires_origin(server, brief_dict, roster_dict, warnings_dict):
     put_snapshot(server, brief_dict, roster_dict, warnings_dict)
     assert call(server, "POST", "/api/done", origin=False, headers={"Origin": "https://evil.com"},
                 body={"row_id": 3, "done": True})[0] == 403
+
+
+def test_index_has_both_tabs(server):
+    status, body, _ = call(server, "GET", f"/?t={TOKEN}", cookie=False)
+    page = body.decode()
+    assert status == 200 and "This week" in page and "Make the brief" in page
+    assert 'id="ring"' in page and "Copy message" in page and "Generate this week" in page
