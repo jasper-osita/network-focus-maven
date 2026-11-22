@@ -229,3 +229,23 @@ def test_dormant_needs_goals(brief_dict, roster_dict):
     bad_goal = copy.deepcopy(brief_dict)
     bad_goal["dormant"][0]["goals"] = [9]
     assert any(p.code == "UNKNOWN_GOAL" and p.where == "dormant[0]" for p in validate_brief(bad_goal, roster_dict))
+
+
+def test_missing_flag_rejected_on_present_row(brief_dict, roster_dict):
+    import copy
+    b = copy.deepcopy(brief_dict)
+    b["updates"] = [{"at": "2026-11-25T10:50", "added": [], "bumped": []}]
+    b["focus"][1]["missing"] = True  # Marcus is still in the roster
+    assert "MISSING_BUT_PRESENT" in codes(validate_brief(b, roster_dict))
+
+
+def test_missing_flag_needs_updates(brief_dict, roster_dict):
+    import copy
+    r = copy.deepcopy(roster_dict)
+    r["contacts"] = [c for c in r["contacts"] if c["name"] != "Paul Christiano"]
+    b = copy.deepcopy(brief_dict)
+    paul = next(f for f in b["focus"] if f["name"] == "Paul Christiano")
+    paul.update({"missing": True, "who": "Researcher, ARC Evals"})
+    assert "MISSING_NOT_ALLOWED" in codes(validate_brief(b, r))
+    b["updates"] = [{"at": "2026-11-25T10:50", "added": [], "bumped": []}]
+    assert validate_brief(b, r) == []

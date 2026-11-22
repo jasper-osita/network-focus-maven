@@ -2,7 +2,7 @@
 The "Check before the meeting" box is filled from warnings.json by code, so the model can't drop a warning."""
 import io
 import unicodedata
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -109,7 +109,9 @@ def _ctx(brief: dict, roster: dict, warnings: dict) -> dict:
     checks = questions_for(brief, roster, warnings)  # same list the dashboard shows as "questions for you"
 
     def who(item):
-        r = rows[item["row_id"]]
+        r = rows.get(item["row_id"])
+        if r is None:  # a pick that left the roster mid-week (marked missing by Update)
+            return item.get("who", "")
         return ", ".join(x for x in (r["role"], r["company"]) if x)
 
     picked = {x["row_id"] for sec in ("focus", "dormant", "coming_up") for x in brief.get(sec, [])}
@@ -120,11 +122,23 @@ def _ctx(brief: dict, roster: dict, warnings: dict) -> dict:
             "src": roster["source"]}
 
 
+def updated_line(brief: dict) -> str | None:
+    """'Updated Wed Nov 25, 10:50: added Ana Ruiz' after a mid-week Update (no %-d: it fails on Windows)."""
+    if not brief.get("updates"):
+        return None
+    last = brief["updates"][-1]
+    d = datetime.fromisoformat(last["at"])
+    what = f"added {', '.join(last['added'])}" if last.get("added") else "no change to the picks"
+    return f"Updated {d:%a} {d:%b} {d.day}, {d:%H:%M}: {what}"
+
+
 def render_markdown(brief: dict, roster: dict, warnings: dict) -> str:
     c = _ctx(brief, roster, warnings)
     src = c["src"]
     lines = [f"# NETWORK FOCUS · Week of {_fmt(brief['week_of'])}",
              f"Data as of: {_fmt(src['as_of'])} (file date) · {src['file_name']}", ""]
+    if updated_line(brief):
+        lines[-1:] = [f"**{updated_line(brief)}**", ""]
     for b in c["banner"]:
         lines += [f"> **Data warning:** {b}", ""]
     lines += [f"## THIS WEEK ({len(brief['focus'])})", ""]
@@ -158,6 +172,8 @@ def _story(brief, c, size, styles):
     src = c["src"]
     story = [p(f"NETWORK FOCUS · Week of {_fmt(brief['week_of'])}", "title"),
              p(f"Data as of: {_fmt(src['as_of'])} (file date) · {src['file_name']}", "meta")]
+    if updated_line(brief):
+        story.append(p(updated_line(brief), "meta"))
     for b in c["banner"]:
         story.append(p(f"Data warning: {b}", "banner"))
     story.append(p(f"THIS WEEK ({len(brief['focus'])})", "h"))

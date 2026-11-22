@@ -115,6 +115,18 @@ def validate_brief(brief: dict, roster: dict) -> list[Problem]:
         problems.append(Problem("WEEK_MISMATCH", "week_of",
                                 f"week_of is '{brief['week_of']}'; copy roster.json source.week_of exactly: '{expected_week}'."))
 
+    def missing_handled(item, where) -> bool:
+        """Code marks a pick 'missing' on Update when its row left the roster. Only then are its row checks skipped."""
+        if not item.get("missing"):
+            return False
+        if item["row_id"] in rows:
+            problems.append(Problem("MISSING_BUT_PRESENT", where,
+                                    f"{where}: {item['name']} is still in the spreadsheet, so they can't be marked missing."))
+        elif not brief.get("updates"):
+            problems.append(Problem("MISSING_NOT_ALLOWED", where,
+                                    f"{where}: only a mid-week Update can mark someone missing. Pick people from the spreadsheet."))
+        return True
+
     def once(item, where):
         if item["row_id"] in seen:
             problems.append(Problem("DUPLICATE_PERSON", where,
@@ -126,6 +138,8 @@ def validate_brief(brief: dict, roster: dict) -> list[Problem]:
     for i, item in enumerate(brief["focus"]):
         where = f"focus[{i}]"
         once(item, where)
+        if missing_handled(item, where):
+            continue
         row = _check_person(item, where, rows, problems)
         if row is None:
             continue
@@ -140,6 +154,8 @@ def validate_brief(brief: dict, roster: dict) -> list[Problem]:
     for i, item in enumerate(brief["dormant"]):
         where = f"dormant[{i}]"
         once(item, where)
+        if missing_handled(item, where):
+            continue
         row = _check_person(item, where, rows, problems)
         if row is None:
             continue
@@ -191,11 +207,14 @@ def validate_scout(scout: dict, roster: dict) -> list[Problem]:
     return problems
 
 
-def cited_rows(brief: dict, roster: dict) -> dict:
+def cited_rows(brief: dict, roster: dict, only_new: bool = False) -> dict:
+    """The rows the fact-checker needs. only_new: just the picks an Update placed this time."""
     rows = _by_row(roster)
     ids = []
-    for section in ("focus", "dormant", "coming_up"):
+    for section in (("focus",) if only_new else ("focus", "dormant", "coming_up")):
         for item in brief.get(section, []):
+            if only_new and not item.get("new"):
+                continue
             if item["row_id"] in rows and item["row_id"] not in ids:
                 ids.append(item["row_id"])
     return {"goals": [{"id": g["id"], "title": g["title"], "text": g["text"]} for g in roster["goals"]],

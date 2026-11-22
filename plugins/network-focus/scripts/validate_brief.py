@@ -22,6 +22,7 @@ def main(argv=None) -> int:
     ap.add_argument("--roster", required=True)
     ap.add_argument("--out", default="")
     ap.add_argument("--input", default="", help="update mode: WORK/update-input.json")
+    ap.add_argument("--only-new", action="store_true", help="cited-rows mode: only picks an Update just placed")
     a = ap.parse_args(argv)
     try:
         doc = json.loads(Path(a.file).read_text(encoding="utf-8"))
@@ -32,7 +33,7 @@ def main(argv=None) -> int:
         return 1
     if a.mode == "cited-rows":
         out = Path(a.out) if a.out else Path(a.file).with_name("cited-rows.json")
-        out.write_text(json.dumps(cited_rows(doc, roster), indent=2), encoding="utf-8")
+        out.write_text(json.dumps(cited_rows(doc, roster, only_new=a.only_new), indent=2), encoding="utf-8")
         print(json.dumps({"ok": True, "problems": [], "out": str(out)}))
         return 0
     try:

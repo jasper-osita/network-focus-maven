@@ -119,3 +119,78 @@ def validate_update(update: dict, roster: dict, update_input: dict) -> list[Prob
             problems.append(Problem("MISSING_PERSON", "people", f"{name} (row {row_id}) is missing from people. "
                                     "Give every new or changed person an answer."))
     return problems
+
+
+def _focus_goals(focus: list[dict]) -> set[int]:
+    return {g for f in focus for g in (f.get("goals") or [])}
+
+
+def apply_update(snapshot: dict, roster: dict, update_input: dict, update: dict, now: str) -> tuple[dict, dict[str, str], dict]:
+    """Merge the model's answer into this week's brief under the rules. Whatever the model wrote, done picks, the #1
+    and dormant picks never move, empty slots fill first, bumps go weakest-first, and no goal loses its only pick."""
+    import copy
+    brief = copy.deepcopy(snapshot["brief"])
+    people_before = snapshot.get("people", {})
+    by_old = {(p["section"], p["old_row_id"]): p for p in update_input["picks"]}
+    questions = list(brief.get("update_questions", []))
+    for section in ("focus", "dormant"):
+        for item in brief.get(section, []):
+            pick = by_old.get((section, item["row_id"]))
+            if pick is None:
+                continue
+            if pick["row_id"] is None:
+                if not item.get("missing"):
+                    row = people_before.get(str(item["row_id"]), {})
+                    item.update({"missing": True, "who": ", ".join(x for x in (row.get("role"), row.get("company")) if x)})
+                    questions.append(f"{item['name']} is no longer in the roster. Remove them from this week's list?")
+            else:
+                item["row_id"] = pick["row_id"]
+    new_rows = {identity(c["name"], c.get("company", "")): c["row_id"] for c in roster["contacts"]}
+    old_people = snapshot.get("people", {})
+    for item in brief.get("coming_up", []):
+        company = old_people.get(str(item["row_id"]), {}).get("company", "")
+        item["row_id"] = new_rows.get(identity(item["name"], company), item["row_id"])
+
+    focus = brief["focus"]
+    before = _focus_goals(focus)
+    empties = sum(1 for s in update_input["open_slots"] if s["kind"] == "empty")
+    replace = [s for s in update_input["open_slots"] if s["kind"] == "replace"]  # weakest first
+    rank_of = {s["row_id"]: s["rank"] for s in replace}
+    taken, added, bumped, refused, considering = set(), [], [], [], []
+    title = update_input["main_goal"]["title"]
+    for p in update["people"]:
+        pick = p.get("pick")
+        if not (p["tied_to_main_goal"] and pick):
+            considering.append({"row_id": p["row_id"], "name": p["name"], "note": p.get("consider", "").strip()})
+            continue
+        item = {"row_id": p["row_id"], "name": p["name"], **pick, "new": True}
+        if empties:
+            focus.append(item)
+            empties -= 1
+            added.append(p["name"])
+            continue
+        floor = rank_of.get(p.get("beats"), 0)
+        for s in replace:
+            if s["row_id"] in taken or s["rank"] < floor:
+                continue
+            idx = next(i for i, f in enumerate(focus) if f["row_id"] == s["row_id"])
+            trial = focus[:idx] + [item] + focus[idx + 1:]
+            if before <= _focus_goals(trial):
+                focus[idx] = item
+                taken.add(s["row_id"])
+                considering.append({"row_id": s["row_id"], "name": s["name"], "note": f"Moved here to make room for {p['name']}."})
+                added.append(p["name"])
+                bumped.append(s["name"])
+                break
+        else:
+            refused.append(p["name"])
+            considering.append({"row_id": p["row_id"], "name": p["name"],
+                                "note": f"Tied to {title}, but no open slot could be freed this week."})
+    placed = {f["row_id"] for f in focus if f.get("new")}
+    fresh = {c["row_id"] for c in considering}
+    brief["considering"] = [c for c in brief.get("considering", []) if c["row_id"] not in placed | fresh] + considering
+    brief["updates"] = brief.get("updates", []) + [{"at": now, "added": added, "bumped": bumped}]
+    if questions:
+        brief["update_questions"] = questions
+    marks = {str(p["row_id"]): p["name"] for p in update_input["picks"] if p["done"] and p["row_id"] is not None}
+    return brief, marks, {"added": added, "bumped": bumped, "refused": refused}

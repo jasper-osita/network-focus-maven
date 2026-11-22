@@ -121,3 +121,21 @@ def test_render_pdf_writes_snapshot(tmp_path, brief_dict, roster_dict, warnings_
     code, out = run_cli(home, "--today", "2026-11-23")
     snap = json.loads((home / "briefs" / "2026-11-23-network-focus.json").read_text())
     assert code == 0 and snap["brief"]["focus"][0]["name"] == "Diana Chen" and snap["version"] == 2 and snap["roster_index"]
+
+
+def test_render_shows_updated_line(brief_dict, roster_dict, warnings_dict):
+    brief_dict["updates"] = [{"at": "2026-11-25T10:50", "added": ["Ana Ruiz"], "bumped": ["Sarah Guo"]}]
+    assert "Updated Wed Nov 25, 10:50: added Ana Ruiz" in render_markdown(brief_dict, roster_dict, warnings_dict)
+    brief_dict["updates"].append({"at": "2026-11-26T09:05", "added": [], "bumped": []})
+    assert "Updated Thu Nov 26, 09:05: no change to the picks" in render_markdown(brief_dict, roster_dict, warnings_dict)
+
+
+def test_render_missing_pick_uses_who(tmp_path, brief_dict, roster_dict, warnings_dict):
+    import copy
+    r = copy.deepcopy(roster_dict)
+    r["contacts"] = [c for c in r["contacts"] if c["name"] != "Paul Christiano"]
+    paul = next(f for f in brief_dict["focus"] if f["name"] == "Paul Christiano")
+    paul.update({"missing": True, "who": "Researcher, ARC Evals"})
+    brief_dict["updates"] = [{"at": "2026-11-25T10:50", "added": [], "bumped": []}]
+    assert "Paul Christiano · Researcher, ARC Evals" in render_markdown(brief_dict, r, warnings_dict)
+    assert render_pdf(brief_dict, r, warnings_dict, tmp_path / "b.pdf") == 1
