@@ -36,7 +36,7 @@ load_roster.py → goal-scout × N (parallel) → main skill picks → validate_
 | Model choice | Scouts on **Sonnet** (careful reading, run in parallel at modest cost). The fact-checker on **Haiku** (narrow comparison; quote matching is already done in code). The final pick on the session's model (the hardest judgment). |
 | Structured output | JSON Schema files in `schemas/` are the single contract. Agents are told to follow them, and the validator enforces them. |
 | Grounding | Each evidence quote must appear word-for-word in that contact's row. "N days" in the text must match the data. Moves need a channel and a specific ask. |
-| Packaging | A plugin in a GitHub repo that is also its own marketplace: install in two steps, updates from the same repo. |
+| Packaging | A plugin in a GitHub repo that is also its own marketplace, installed by a one-click `Install Network Focus` script. Re-running it updates. |
 | Where she runs it | A local one-button web page (Python standard library, local-only, token-protected; background runs may only touch her folder and the plugin's scripts) that runs the same skill with `claude -p`, with the Claude desktop app as backup. It opens on a **CEO dashboard**: the #1 pick with a ready-to-send message (checked like every other claim), a checklist and a progress ring. **Cloud web app rejected:** it needs hosting, an API key and a login, it puts the CEO's private notes on a server, and she couldn't fix it herself. |
 
 ## 4. Data sourcing strategy (production)
@@ -48,7 +48,7 @@ load_roster.py → goal-scout × N (parallel) → main skill picks → validate_
 | CRM (Affinity / HubSpot) | Role, company, tags, intro history | Weekly |
 | **Manual** | Strength, how she knows them, notes: the CEO's judgment | A 10-minute Friday review |
 
-**Store dates, not "days since."** The trial sheet's day counts are relative to an export date the file never records, which is why staleness can only be guessed. In production, `last_contact_date` is stored and the gap is computed at run time. **Trade-offs:** inbox access improves completeness at a privacy cost, so it's opt-in and summaries only. Daily sync gives fresher data for more API calls. LinkedIn stays manual because of its terms of service.
+**Store dates, not "days since."** The trial sheet's day counts are relative to an export date the file never records, which is why staleness can only be guessed. In production, `last_contact_date` is stored and the gap is computed at run time. **Trade-offs:** inbox access improves completeness at a privacy cost, so it's opt-in and summaries only. Daily sync gives fresher data for more API calls. LinkedIn stays manual because of its terms of service. **Next step (not built):** publish the CEO view to a private claude.ai artifact she can open on her phone, with ticks shared with the chief of staff. It's unverified from local Claude Code, and it would store notes on claude.ai.
 
 ## 5. Failure modes handled (in code)
 
@@ -64,8 +64,6 @@ load_roster.py → goal-scout × N (parallel) → main skill picks → validate_
 
 ## 6. Success criteria
 
-- **All 6 end-to-end test cases pass.** Every case runs the real skill on a test spreadsheet: the real roster, missing columns, stale/reused, a duplicate name, a thin goal contact, CSV. The checks are done in code.
-- **The real roster's brief** includes Diana Chen and Marcus Wei, excludes the decoys (James Park, Jensen Carlsson, Jensen Huang, Demis Hassabis, Aaron Goldsmith), and flags a16z, "Patrick at Greylock" and ARC.
-- **Zero invented names or quotes**, and a **grader score of ≥4/5** on grounding and move specificity.
-- **A fresh install from the handoff doc alone works** on a real Mac.
-- **Result (Nov 21):** 6/6 cases pass, grader grounding 4 and specificity 4 on every brief, 107–142 s and about $1.10 per weekly run (`tests/evals/results/2026-11-21.md`).
+- **All 6 end-to-end cases pass**, with every check done in code. **Result (Nov 21): 6/6**, grader 4/4 on grounding and specificity, about 2 minutes and $1.10 per run.
+- **The real roster's brief** picks Diana Chen and Marcus Wei, skips the decoys (James Park, Jensen Huang, Demis Hassabis), and flags a16z, "Patrick at Greylock" and ARC.
+- **Zero invented names or quotes,** and **a fresh install with the one-click installer works** on a real Mac.

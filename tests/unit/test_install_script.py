@@ -130,3 +130,11 @@ def test_command_file():
     text = cmd.read_text()
     assert os.access(cmd, os.X_OK) and text.startswith("#!/bin/bash")
     assert "install.sh" in text and "https://raw.githubusercontent.com/jasper-osita/network-focus-maven/main/install.sh" in text
+
+
+def test_deliverable_zip_keeps_installer_executable():
+    import zipfile
+    with zipfile.ZipFile(ROOT / "deliverables" / "Install Network Focus.zip") as z:
+        info = z.getinfo("Install Network Focus.command")
+        assert (info.external_attr >> 16) & 0o111, "unzipped installer must stay double-clickable"
+        assert z.read(info) == (ROOT / "Install Network Focus.command").read_bytes(), "zip is out of date"
