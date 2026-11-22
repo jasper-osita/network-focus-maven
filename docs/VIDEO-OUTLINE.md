@@ -4,7 +4,7 @@ These are talking points, not a script. Say them in your own words, and type liv
 
 ## Before you hit record
 
-- [ ] On your Mac, Network Focus is installed with **Install Network Focus.command** (one click, sign in to Claude), and **Check setup** on the page shows only ✅ and ℹ️.
+- [ ] On your computer, Network Focus is installed with the one-click installer from `Install Network Focus.zip` (sign in to Claude when asked), and **Check setup** on the page shows only ✅ and ℹ️.
 - [ ] A fresh copy of `network_roster_terragrid.xlsx` is on the Desktop. A second copy, `broken.xlsx`, is open in **Excel**, ready for the failure demo. Numbers would save it as .numbers; if you only have Numbers, use File → Export To → Excel.
 - [ ] VS Code is open on the repo with these tabs: `docs/PRD.md`, `skills/brief/SKILL.md`, `agents/goal-scout.md`, `scripts/nf_core/brief_checks.py`, `scripts/nf_core/checks.py`, `scripts/nf_core/roster.py`, `tests/evals/results/` (latest).
 - [ ] Notifications are off (Focus mode), the font size is bumped, and the browser shows only the Network Focus page.
@@ -25,7 +25,7 @@ These are talking points, not a script. Say them in your own words, and type liv
 
 ## 3. Architecture with code visible (2–3 min)
 
-- Start with how she installs it: `install.sh` (one click: helpers, sign-in, plugin, page, Desktop link; re-run updates).
+- Start with how she installs it: one-click installers for Mac (`install.sh`) and Windows (`install.ps1`), tested on both by GitHub Actions. They handle helpers, sign-in, plugin, page and Desktop link, and re-running updates.
 - Show the repo tree. The root `marketplace.json` makes the repo installable. Under `plugins/network-focus/` are `skills/` (brief, check, setup-app), `agents/`, `scripts/` and `schemas/`.
 - SKILL.md: `allowed-tools` pre-approves only what the skill needs (Read/Write/Edit, `uv run`, the agents), so there are no permission prompts for her. `${CLAUDE_PLUGIN_ROOT}` locates the scripts. Background runs from the page are tighter still: `install_app.py` limits them to her folder and the plugin's own scripts.
 - `schemas/brief.json`: one contract that the agents follow and the validator enforces.
@@ -45,5 +45,5 @@ These are talking points, not a script. Say them in your own words, and type liv
 - **Staleness is a guess.** The sheet stores "days since" with no export date, so I use the file date and a fingerprint. In production I'd store dates (Calendar and Gmail MCP).
 - **Tested on 25 contacts.** At hundreds, I'd pre-filter rows per goal in code before the scouts read them.
 - **Model picks can vary a little between runs.** The must-include and must-exclude checks hold, but the order and wording shift. The fact-checker can miss soft embellishments (the grader caught "ARC is a key AI safety organization").
-- **macOS only.** The local page needs the Claude Code command-line tool, and a scheduled Monday 7am run isn't built yet.
+- **Mac and Windows.** Windows background-run permissions use a different path format that still needs one signed-in Windows run to confirm. A scheduled Monday 7am run isn't built yet.
 - **About 2–3 minutes and about $1.20 per run.** The scouts could drop to Haiku if cost matters more than nuance.

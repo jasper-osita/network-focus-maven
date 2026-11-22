@@ -4,12 +4,13 @@ Every Monday, Network Focus turns the CEO's network spreadsheet and goals into a
 
 ## One-time setup (about 10 minutes, one click)
 
-**You need** a Mac and a paid Claude plan (Pro or higher).
+**You need** a Mac or a Windows PC and a paid Claude plan (Pro or higher). Double-click **Install Network Focus.zip** to unzip it.
 
-1. Double-click **Install Network Focus** (the file you were sent; if it's a .zip, double-click that first to unzip it). A window opens and works through 5 steps on its own.
-   *If macOS says it "can't be opened":* open **System Settings → Privacy & Security**, scroll down, click **Open Anyway**, and double-click it again. *Or* open **Terminal** (⌘-Space, type *Terminal*), paste this line and press Return: `curl -fsSL https://raw.githubusercontent.com/jasper-osita/network-focus-maven/main/install.sh | bash`
-2. When your browser opens, **sign in to Claude**, then come back to the window. If it asks for your Mac password, type it (nothing shows while you type) and press Return.
+1. **Mac:** double-click *Mac - Install Network Focus* (if macOS says it "can't be opened": **System Settings → Privacy & Security → Open Anyway**). **Windows:** double-click *Windows - Install Network Focus* (if you see "Windows protected your PC": **More info → Run anyway**). A window opens and works through 5 steps on its own.
+2. When your browser opens, **sign in to Claude**, then come back to the window. If a Mac asks for your password, type it (nothing shows while you type).
 3. When it says **Done**, the dashboard opens and a **Network Focus** link is on your Desktop.
+
+*If the double-click is blocked:* on a Mac, paste into **Terminal** `curl -fsSL https://raw.githubusercontent.com/jasper-osita/network-focus-maven/main/install.sh | bash`; on Windows, paste into **PowerShell** `irm https://raw.githubusercontent.com/jasper-osita/network-focus-maven/main/install.ps1 | iex`
 
 ## Every Monday (2 minutes, plus 3 minutes of waiting)
 
@@ -17,7 +18,7 @@ Every Monday, Network Focus turns the CEO's network spreadsheet and goals into a
 2. It switches to **This week**: the CEO's #1 person with **Copy message** (a ready-to-send draft) and **Mark done**, then a checklist. Tick moves as she makes them. **Open PDF** gives the printable brief.
 
 *No page?* In the Claude app's **Code** tab, with the Network Focus folder open, type **make this week's network brief**.
-*Each quarter:* open *Documents › Network Focus › goals.md* with TextEdit (right-click › Open With). Change only the text after each colon, and keep lines like `## Goal 1:` as they are.
+*Each quarter:* open *Documents › Network Focus › goals.md* in TextEdit (Mac) or Notepad (Windows). Change only the text after each colon, and keep lines like `## Goal 1:` as they are.
 
 ## What "good" looks like
 
@@ -35,4 +36,4 @@ Every Monday, Network Focus turns the CEO's network spreadsheet and goals into a
 | "I couldn't make a brief I'm confident in this week" | Click Generate again. If it repeats, click **Check setup** and send a screenshot to whoever set this up. |
 | "Claude is signed out" / the page won't open | Double-click **Install Network Focus** again: it signs you back in and repairs the page. |
 
-**Anything else:** click **Check setup** on the page and do the first ❌ fix. **Updates:** double-click **Install Network Focus** again; it updates everything. **To remove it** (keeps your briefs): in Terminal, `bash install.sh --uninstall`.
+**Anything else:** click **Check setup** on the page and do the first ❌ fix. **Updates:** double-click **Install Network Focus** again; it updates everything. **To remove it** (keeps your briefs): run the installer from Terminal with `--uninstall` (Mac) or from PowerShell with `-Uninstall` (Windows).

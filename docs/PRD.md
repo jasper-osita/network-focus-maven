@@ -36,7 +36,7 @@ load_roster.py → goal-scout × N (parallel) → main skill picks → validate_
 | Model choice | Scouts on **Sonnet** (careful reading, run in parallel at modest cost). The fact-checker on **Haiku** (narrow comparison; quote matching is already done in code). The final pick on the session's model (the hardest judgment). |
 | Structured output | JSON Schema files in `schemas/` are the single contract. Agents are told to follow them, and the validator enforces them. |
 | Grounding | Each evidence quote must appear word-for-word in that contact's row. "N days" in the text must match the data. Moves need a channel and a specific ask. |
-| Packaging | A plugin in a GitHub repo that is also its own marketplace, installed by a one-click `Install Network Focus` script. Re-running it updates. |
+| Packaging | A plugin in a GitHub repo that is also its own marketplace, installed by one-click installers for Mac and Windows (tested on both in CI). Re-running updates. |
 | Where she runs it | A local one-button web page (Python standard library, local-only, token-protected; background runs may only touch her folder and the plugin's scripts) that runs the same skill with `claude -p`, with the Claude desktop app as backup. It opens on a **CEO dashboard**: the #1 pick with a ready-to-send message (checked like every other claim), a checklist and a progress ring. **Cloud web app rejected:** it needs hosting, an API key and a login, it puts the CEO's private notes on a server, and she couldn't fix it herself. |
 
 ## 4. Data sourcing strategy (production)

@@ -6,13 +6,19 @@ Built for the MindMaven *AI Builder Partner* trial project.
 
 ## Install
 
-**One click (macOS):** double-click `Install Network Focus.command`, or paste into Terminal:
+**One click (Mac or Windows):** unzip `deliverables/Install Network Focus.zip` and double-click the installer for your system. Or paste one line:
 
 ```bash
+# Mac (Terminal)
 curl -fsSL https://raw.githubusercontent.com/jasper-osita/network-focus-maven/main/install.sh | bash
 ```
 
-It installs `uv` and Claude Code if they're missing, checks you're signed in to Claude, installs the plugin, sets up the local page and Desktop link, and opens the dashboard. Re-running updates everything; `bash install.sh --uninstall` removes it but keeps your briefs.
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/jasper-osita/network-focus-maven/main/install.ps1 | iex
+```
+
+It installs `uv` and Claude Code (plus Git for Windows on a PC) if they're missing, checks you're signed in to Claude, installs the plugin, sets up the local page and Desktop link, and opens the dashboard. Re-running updates everything; `--uninstall` (Mac) or `-Uninstall` (Windows) removes it but keeps your briefs. The test suite runs on Ubuntu, macOS and Windows in GitHub Actions.
 
 **Manually:** `/plugin marketplace add jasper-osita/network-focus-maven`, then `/plugin install network-focus@network-focus`, then `/network-focus:setup-app`. Non-technical steps are in [docs/HANDOFF.md](docs/HANDOFF.md).
 
