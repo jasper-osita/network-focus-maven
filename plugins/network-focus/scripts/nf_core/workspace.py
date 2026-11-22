@@ -54,12 +54,42 @@ def nf_home() -> Path:
     return Path(env).expanduser() if env else documents_dir() / "Network Focus"
 
 
+SETTINGS_FILE = "settings.json"
+
+
+def load_settings(root: Path) -> dict:
+    """<root>/settings.json, written by the installer. {} when missing or unreadable."""
+    try:
+        data = json.loads((Path(root) / SETTINGS_FILE).read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_settings(root: Path, data: dict) -> None:
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    tmp = root / f".{SETTINGS_FILE}.tmp"
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    os.replace(tmp, root / SETTINGS_FILE)
+
+
 class Workspace:
     def __init__(self, root: Path):
         self.root = Path(root)
 
     goals_path = property(lambda self: self.root / "goals.md")
-    inbox = property(lambda self: self.root / "inbox")
+
+    @property
+    def roster_folder(self) -> Path | None:
+        """The Google Drive folder the roster lives in, when the installer set one up."""
+        folder = load_settings(self.root).get("roster_folder")
+        return Path(folder) if isinstance(folder, str) and folder else None
+
+    @property
+    def inbox(self) -> Path:
+        """Where rosters are read from and dropped files are saved: the Drive folder, else the local inbox."""
+        return self.roster_folder or self.root / "inbox"
     briefs = property(lambda self: self.root / "briefs")
     work = property(lambda self: self.root / ".work")
     history_path = property(lambda self: self.root / ".history.json")
@@ -68,7 +98,7 @@ class Workspace:
 def ensure_workspace(ws: Workspace, template: Path) -> bool:
     """Create the folder on first run. Returns True when it was created just now."""
     created = not ws.root.exists()
-    for d in (ws.inbox, ws.briefs, ws.work):
+    for d in (ws.root / "inbox", ws.briefs, ws.work):  # never the Drive folder: Drive may be signed out
         d.mkdir(parents=True, exist_ok=True)
     if not ws.goals_path.exists():
         shutil.copy(template, ws.goals_path)
@@ -91,9 +121,19 @@ def pick_roster(ws: Workspace, explicit: Path | None) -> tuple[Path, list[Issue]
         if not p.exists():
             raise block("NO_SPREADSHEET", f"I couldn't find {p}. Check the file name, or drag the file into {ws.inbox}.")
         return p, []
+    folder = ws.roster_folder
+    if folder is not None and not folder.is_dir():
+        raise block("DRIVE_FOLDER_MISSING",
+                    f"I can't find the Network Focus folder in Google Drive ({folder}). Open Google Drive for "
+                    "desktop and check you're signed in, then try again.")
     files = [f for f in ws.inbox.iterdir()
              if f.is_file() and f.suffix.lower() in SPREADSHEET_SUFFIXES
              and not f.name.startswith(("~$", "."))] if ws.inbox.exists() else []
+    if not files and any(f.suffix.lower() == ".gsheet" for f in ws.inbox.glob("*")):
+        raise block("GOOGLE_SHEET",
+                    "The roster in Google Drive is a Google Sheet, which I can't read. In Drive, open it and choose "
+                    "File → Download → Microsoft Excel, then put that file in the Network Focus folder. Or keep the "
+                    "roster as an Excel file.")
     if not files:
         other = [f for f in ws.inbox.iterdir() if f.is_file() and f.suffix.lower() in OTHER_SPREADSHEETS
                  and not f.name.startswith(("~$", "."))] if ws.inbox.exists() else []

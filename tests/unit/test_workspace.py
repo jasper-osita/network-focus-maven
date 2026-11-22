@@ -151,3 +151,60 @@ def test_documents_dir_falls_back_without_known_folder(monkeypatch):
     monkeypatch.setattr(ws.sys, "platform", "win32")
     monkeypatch.setattr(ws, "_known_folder", lambda name: None)
     assert ws.documents_dir() == Path.home() / "Documents"
+
+
+# ---- roster folder in Google Drive ----
+from nf_core.issues import BlockingError  # noqa: E402
+from nf_core.workspace import ensure_workspace, load_settings, save_settings  # noqa: E402
+
+
+def test_inbox_follows_roster_folder(tmp_path):
+    root, folder = tmp_path / "NF", tmp_path / "Drive" / "Network Focus"
+    root.mkdir()
+    assert Workspace(root).inbox == root / "inbox" and Workspace(root).roster_folder is None
+    save_settings(root, {"roster_folder": str(folder)})
+    assert load_settings(root) == {"roster_folder": str(folder)}
+    assert Workspace(root).inbox == folder and Workspace(root).roster_folder == folder
+    (root / "settings.json").write_text("{not json", encoding="utf-8")
+    assert load_settings(root) == {} and Workspace(root).inbox == root / "inbox"
+
+
+def test_ensure_workspace_never_creates_drive_folder(tmp_path):
+    root, folder = tmp_path / "NF", tmp_path / "Drive" / "Network Focus"
+    root.mkdir()
+    save_settings(root, {"roster_folder": str(folder)})
+    ensure_workspace(Workspace(root), TEMPLATE_GOALS)
+    assert not folder.exists() and (root / "inbox").is_dir() and (root / "briefs").is_dir()
+
+
+def test_pick_roster_drive_folder_missing(tmp_path):
+    root, folder = tmp_path / "NF", tmp_path / "Drive" / "Network Focus"
+    root.mkdir()
+    save_settings(root, {"roster_folder": str(folder)})
+    with pytest.raises(BlockingError) as e:
+        pick_roster(Workspace(root), None)
+    assert e.value.issue.code == "DRIVE_FOLDER_MISSING" and str(folder) in e.value.issue.message
+
+
+def test_pick_roster_google_sheet(tmp_path):
+    root, folder = tmp_path / "NF", tmp_path / "Drive" / "Network Focus"
+    root.mkdir()
+    folder.mkdir(parents=True)
+    (folder / "Roster.gsheet").write_text('{"url": "https://docs.google.com/x"}', encoding="utf-8")
+    save_settings(root, {"roster_folder": str(folder)})
+    with pytest.raises(BlockingError) as e:
+        pick_roster(Workspace(root), None)
+    assert e.value.issue.code == "GOOGLE_SHEET" and "File → Download → Microsoft Excel" in e.value.issue.message
+
+
+def test_pick_roster_reads_from_drive_folder(tmp_path, make_roster):
+    root, folder = tmp_path / "NF", tmp_path / "Drive" / "Network Focus"
+    root.mkdir()
+    folder.mkdir(parents=True)
+    src = make_roster([{"Name": "Ana Ruiz"}])
+    shutil.copy(src, folder / "roster.xlsx")
+    (root / "inbox").mkdir()
+    shutil.copy(src, root / "inbox" / "local.xlsx")
+    save_settings(root, {"roster_folder": str(folder)})
+    path, _ = pick_roster(Workspace(root), None)
+    assert path == folder / "roster.xlsx"
