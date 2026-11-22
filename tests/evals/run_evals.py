@@ -68,6 +68,57 @@ def prepare(case: Path, tmp: Path) -> Path:
     return home
 
 
+def prepare_update(case: Path, tmp: Path) -> Path:
+    """Monday's brief as this week's snapshot (built from the sample roster), the ticks so far, and the new roster."""
+    from nf_core.checks import flags_for, run_checks
+    from nf_core.goals import parse_goals
+    from nf_core.roster import read_roster
+    from nf_core.snapshot import build_snapshot
+    from nf_core.workspace import week_of
+    home = tmp / "Network Focus"
+    (home / "inbox").mkdir(parents=True)
+    (home / "briefs").mkdir()
+    shutil.copy(PLUGIN / "templates" / "goals.md", home / "goals.md")
+    shutil.copy(case / "roster.xlsx", home / "inbox" / "roster.xlsx")
+    week = week_of(date.today()).isoformat()
+    sample = ROOT / "sample-data" / "network_roster_terragrid.xlsx"
+    contacts, _ = read_roster(sample)
+    goals = parse_goals((home / "goals.md").read_text(encoding="utf-8"))
+    roster = {"source": {"path": str(sample), "file_name": sample.name, "sha256": fingerprint(sample),
+                         "as_of": date.today().isoformat(), "week_of": week},
+              "goals": [g.to_dict() for g in goals],
+              "contacts": [{**c.to_dict(), "text": c.text(), "flags": flags_for(c)} for c in contacts]}
+    brief = json.loads((case / "base_brief.json").read_text())
+    brief["week_of"] = week
+    warnings = {"warnings": [i.to_dict() for i in run_checks(contacts, goals)]}
+    (home / "briefs" / f"{week}-network-focus.json").write_text(json.dumps(build_snapshot(brief, roster, warnings)))
+    marks = json.loads((case / "setup.json").read_text())["marks"]
+    if marks:
+        (home / ".progress.json").write_text(json.dumps({week: marks}))
+    return home
+
+
+def check_update(case: Path, home: Path, out: dict) -> list[str]:
+    exp = json.loads((case / "expected.json").read_text())
+    fails = [f"run errored: {str(out.get('result'))[:200]}"] if out.get("is_error") else []
+    snap = json.loads(next((home / "briefs").glob("*-network-focus.json")).read_text())
+    brief = snap["brief"]
+    if not brief.get("updates"):
+        return fails + [f"the brief wasn't updated. Reply: {str(out.get('result', ''))[:300]!r}"]
+    focus = {f["name"]: f for f in brief["focus"]}
+    considering = {c["name"] for c in brief.get("considering", [])}
+    fails += [f"not placed: {n}" for n in exp["must_place"] if not focus.get(n, {}).get("new")]
+    fails += [f"not in Worth considering: {n}" for n in exp["must_consider"] + exp["must_refuse"]
+              if n not in considering or n in focus]
+    fails += [f"dropped from focus: {n}" for n in exp["must_keep"] if n not in focus]
+    problems = validate_brief(brief, json.loads((home / ".work" / "roster.json").read_text()))
+    if problems:
+        fails.append("validator: " + "; ".join(p.code for p in problems))
+    if '"row_id"' in str(out.get("result", "")):
+        fails.append("chat reply contains JSON")
+    return fails
+
+
 def check(case: Path, home: Path, out: dict) -> list[str]:
     exp = json.loads((case / "expected.json").read_text())
     work, briefs = home / ".work", home / "briefs"
@@ -132,13 +183,16 @@ def main() -> int:
     rows, failed = [], 0
     for case in cases:
         with tempfile.TemporaryDirectory() as tmp:
-            home = prepare(case, Path(tmp))
+            is_update = json.loads((case / "setup.json").read_text()).get("kind") == "update"
+            home = (prepare_update if is_update else prepare)(case, Path(tmp))
             t0 = time.time()
-            out = claude("/network-focus:brief", ["--plugin-dir", str(PLUGIN), *HEADLESS],
+            out = claude("/network-focus:update" if is_update else "/network-focus:brief",
+                         ["--plugin-dir", str(PLUGIN), *HEADLESS],
                          {**os.environ, "NF_HOME": str(home)}, log=RESULTS / "logs" / f"{case.name}.jsonl")
             secs = round(time.time() - t0)
-            fails = check(case, home, out)
-            g = grade(home) if a.grade and not json.loads((case / "expected.json").read_text())["must_block"] else None
+            fails = (check_update if is_update else check)(case, home, out)
+            g = grade(home) if (a.grade and not is_update
+                                and not json.loads((case / "expected.json").read_text())["must_block"]) else None
             if g and (g.get("grounding", 0) < 4 or g.get("specificity", 0) < 4):
                 fails.append(f"grader below 4 (grounding {g.get('grounding')}, specificity {g.get('specificity')})")
             failed += bool(fails)

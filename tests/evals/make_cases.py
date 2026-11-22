@@ -19,6 +19,14 @@ REAL_EXPECT = {
     "must_block": None,
 }
 NO_EXPECT = {"must_include": [], "must_exclude": [], "must_warn": [], "must_not_warn": [], "must_block": None}
+BASE_BRIEF = ROOT / "tests" / "unit" / "fixtures" / "valid_brief.json"
+NO_UPDATE = {"must_place": [], "must_consider": [], "must_keep": [], "must_refuse": []}
+ANA = ["Ana Ruiz", "Partner", "Andreessen Horowitz", "investor", 5, "email",
+       "Asked for a Series C call before Friday after seeing the teaser deck.", 3, "investor, series-c",
+       "Met at a founders dinner; wants to see the full deck."]
+TOM = ["Tom Park", "Engineering Director", "Figma", "former colleague", 10, "call",
+       "Scaled engineering from 40 to 220 people. Open to a conversation about a bigger role.", 3, "cto-candidate",
+       "Would want an intro to the board first."]
 
 
 def sample_rows() -> list[list]:
@@ -45,6 +53,14 @@ def case(name: str, expected: dict, setup: dict | None = None) -> Path:
     return d
 
 
+def update_case(name: str, expected: dict, rows: list[list], marks: dict, brief: dict) -> None:
+    """A mid-week Update case: Monday's brief (base_brief.json, made from the sample roster), the ticks so far,
+    and this week's changed roster."""
+    d = case(name, {**NO_UPDATE, **expected}, {"kind": "update", "marks": marks})
+    (d / "base_brief.json").write_text(json.dumps(brief, indent=2, ensure_ascii=False))
+    write_xlsx(d / "roster.xlsx", rows)
+
+
 def main() -> None:
     rows = sample_rows()
     header = rows[0]
@@ -68,6 +84,17 @@ def main() -> None:
 
     with open(case("csv-version", REAL_EXPECT) / "roster.csv", "w", newline="", encoding="utf-8-sig") as f:
         csv.writer(f).writerows([["" if v is None else v for v in r] for r in rows])
+    base = json.loads(BASE_BRIEF.read_text())
+    update_case("update-series-c-newcomer", {"must_place": ["Ana Ruiz"], "must_keep": ["Diana Chen"]},
+                rows + [ANA], {}, base)
+    update_case("update-cto-newcomer", {"must_consider": ["Tom Park"], "must_keep": ["Diana Chen"]},
+                rows + [TOM], {}, base)
+    floor = json.loads(BASE_BRIEF.read_text())
+    sarah = next(f for f in floor["focus"] if f["name"] == "Sarah Guo")
+    sarah["goals"] = [1]  # Paul Christiano is now the only AI-safety pick
+    done = {str(f["row_id"]): f["name"] for f in floor["focus"][1:] if f["name"] != "Paul Christiano"}
+    update_case("update-coverage-floor", {"must_refuse": ["Ana Ruiz"], "must_keep": ["Paul Christiano"]},
+                rows + [ANA], done, floor)
     print(f"Wrote {len(list(CASES.iterdir()))} cases to {CASES}")
 
 

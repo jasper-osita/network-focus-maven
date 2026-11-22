@@ -1,0 +1,124 @@
+{
+  "week_of": "2026-11-23",
+  "focus": [
+    {
+      "row_id": 3,
+      "name": "Diana Chen",
+      "goals": [
+        2
+      ],
+      "why": "Stripe's CTO offered to share 3-4 strong CTO candidates 28 days ago, and the CEO never followed up.",
+      "move": "Email Diana today asking for the candidate intros by name, and offer a 20-minute call.",
+      "risk": "The offer goes cold, and with it the warmest path to CTO candidates.",
+      "evidence": [
+        "Mentioned she knows 3-4 strong candidates",
+        "CEO never followed up after the offer"
+      ],
+      "confidence": "high",
+      "message": "Hi Diana, a few weeks ago you kindly offered to help with our CTO search, and I'd love to take you up on it. Could you share the 3-4 candidates you had in mind and introduce me to the two strongest? Happy to do a quick call this week if that's easier."
+    },
+    {
+      "row_id": 2,
+      "name": "Marcus Wei",
+      "goals": [
+        1
+      ],
+      "why": "Sequoia asked to see the full pitch after the teaser deck, so the next move is hers.",
+      "move": "Send Marcus the full deck this week and ask for a 30-minute meeting before Q3.",
+      "risk": "Sequoia is one of three warm firms; a slow reply reads as no real process.",
+      "evidence": [
+        "Asked to see the full pitch",
+        "Replied positively to teaser deck"
+      ],
+      "confidence": "high",
+      "message": "Hi Marcus, thanks again for the kind reply to the teaser deck. As promised, here is the full pitch for our Series C. Could we find 30 minutes this week or next to walk through it together? I can send a couple of times that work."
+    },
+    {
+      "row_id": 6,
+      "name": "Reid Hoffman",
+      "goals": [
+        1
+      ],
+      "why": "Her strongest investor relationship, quiet for 81 days, and he asked to hear about Series C plans.",
+      "move": "Write Reid a personal note and ask for a 30-minute Series C preview call.",
+      "risk": "The strongest signal for the round goes unused while she pitches colder firms.",
+      "evidence": [
+        "Strongest investor relationship she has",
+        "said he wanted to hear about Series C plans"
+      ],
+      "confidence": "high",
+      "message": "Hi Reid, it was good to catch up briefly at CES. You mentioned you'd like to hear about our Series C plans, and we're now getting ready to run a proper process. Could I take 30 minutes of your time for an early preview and your advice?"
+    },
+    {
+      "row_id": 4,
+      "name": "Paul Christiano",
+      "goals": [
+        3
+      ],
+      "why": "ARC researcher who showed interest in TerraGrid 8 days ago and would welcome concrete questions.",
+      "move": "Reply to Paul with two concrete questions about evals for TerraGrid's AI features, and offer a call.",
+      "risk": "Her only ARC thread cools before it becomes a relationship.",
+      "evidence": [
+        "Would benefit from a follow-up with concrete questions",
+        "Showed interest in TerraGrid"
+      ],
+      "confidence": "medium",
+      "message": "Hi Paul, thanks for the exchange about your recent eval paper. As TerraGrid moves toward AI-driven features, I have two concrete questions about how you would evaluate them. Would you be open to a short call in the next couple of weeks?"
+    },
+    {
+      "row_id": 5,
+      "name": "Sarah Guo",
+      "goals": [
+        1
+      ],
+      "why": "Invests in AI-safety-adjacent companies and already discussed Series C timing with her.",
+      "move": "Email Sarah the Series C timeline and ask if Conviction wants an early look.",
+      "risk": "A two-goal relationship stays at coffee-chat level.",
+      "evidence": [
+        "Discussed Series C timing and AI safety angle",
+        "Invests in AI-safety-adjacent companies"
+      ],
+      "confidence": "medium",
+      "message": "Hi Sarah, it was great to talk about Series C timing and the AI safety angle at the AI Engineer Summit. We're now firming up the timeline, and I'd value an early look from Conviction. Could we set up a time to walk through it?"
+    }
+  ],
+  "dormant": [
+    {
+      "row_id": 16,
+      "name": "Priya Mehta",
+      "days_since_contact": 128,
+      "why": "Strong Series C fit, but the last contact was around her seed round, 128 days ago.",
+      "move": "Send Priya a short note with the Series C headline and ask for coffee.",
+      "evidence": [
+        "Strong fit for Series C but communication has gone cold"
+      ],
+      "message": "Hi Priya, it has been a while since we met around our seed round. TerraGrid has grown a lot since then and we're preparing our Series C. I'd love to catch up over coffee and hear whether it could be a fit for Index.",
+      "goals": [
+        1
+      ]
+    },
+    {
+      "row_id": 19,
+      "name": "Brian Armstrong",
+      "days_since_contact": 67,
+      "why": "He owes her a favor after she introduced him to a board candidate.",
+      "move": "Email Brian asking for one intro to a CTO candidate who has scaled a team past 200.",
+      "evidence": [
+        "He owes her one after she introduced him to a board candidate"
+      ],
+      "message": "Hi Brian, I hope the board search went well after the intro. We're now looking for a CTO who has scaled an engineering team past 200 people. Would you be willing to introduce me to one or two people you think would be strong?",
+      "goals": [
+        1
+      ]
+    }
+  ],
+  "coming_up": [
+    {
+      "row_id": 25,
+      "name": "Maya Patel",
+      "note": "Her 'revisit in a month' window opens in about 2 weeks. Draft the note now."
+    }
+  ],
+  "goal_gaps": [],
+  "extra_checks": []
+}
