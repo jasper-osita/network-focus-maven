@@ -9,7 +9,7 @@ from pathlib import Path
 import markdown
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = {"PRD.md": ("PRD.pdf", 2, 9.6, "0.5in,0.6in"), "HANDOFF.md": ("Handoff.pdf", 1, 8.8, "0.4in,0.5in")}
+DOCS = {"PRD.md": ("PRD.pdf", 2, 9.4, "0.5in,0.6in"), "HANDOFF.md": ("Handoff.pdf", 1, 8.6, "0.4in,0.5in")}
 CSS = """
 body { font-family: -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #2b2b2b;
        font-size: %(size)spt; line-height: 1.38; }

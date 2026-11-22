@@ -23,6 +23,8 @@ These are talking points, not a script. Say them in your own words, and type liv
 - When it finishes, the page switches to **This week**, the CEO dashboard. Point at the #1 card first: "one person, one move, one click". Click **Copy message** and paste it into a note to show the draft is real and grounded. Tick **Mark done** and watch the ring move.
 - Then open the PDF and walk through it: the picks and why, then the decoys it skipped (James Park: strength 5, best friend, no goal link; Jensen Huang: famous, no relationship). Finish on **Check before the meeting** (a16z, Patrick, ARC and the academic contradiction) and the extra issues the scouts spotted (Paul's email vs LinkedIn, David Liu's "ex-colleague").
 
+- **If there's time (1 min):** add a Series C investor row to the roster in Google Drive. Within a few minutes the page says *Roster updated · New: …*. Click **Update**: the newcomer takes the weakest open slot with a *New · Raise Series C* chip, and the bumped pick moves to *Worth considering*. Point at the goal rings.
+
 ## 3. Architecture with code visible (2–3 min)
 
 - Start with how she installs it: one-click installers for Mac (`install.sh`) and Windows (`install.ps1`), tested on both by GitHub Actions. They handle helpers, sign-in, plugin, page and Desktop link, and re-running updates.
@@ -31,7 +33,8 @@ These are talking points, not a script. Say them in your own words, and type liv
 - `schemas/brief.json`: one contract that the agents follow and the validator enforces.
 - `app/server.py`: why a **local** page instead of a cloud app. Her data stays on her Mac, it uses her Claude login, and there's no server to break. Show the guards: 127.0.0.1 only, Host/Origin checks, a token, one run at a time.
 - The dashboard: `nf_core/snapshot.py` saves a JSON copy of each brief, and `app/dashboard_data.py` turns it into the #1, the checklist and the ring. The messages are checked by code (length, name, no placeholders, numbers) and by the fact-checker.
-- The test set: open the latest `tests/evals/results/*.md`. Six real end-to-end cases plus an independent grader, alongside 129 unit tests.
+- The test set: open the latest `tests/evals/results/*.md`. Six real end-to-end brief cases, three mid-week Update cases and an independent grader, alongside 240+ unit tests.
+- Mid-week Update: `nf_core/update.py` → `apply_update`. The model only says who's tied to the Series C and who they beat. Code decides the slot, and refuses a swap that would empty a goal or touch a done pick.
 
 ## 4. A failure mode, live, with the code (2–3 min)
 

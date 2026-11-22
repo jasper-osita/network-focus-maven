@@ -32,8 +32,8 @@ load_roster.py → goal-scout × N (parallel) → pick → validate_brief.py →
 
 - `plugins/network-focus/scripts/`: deterministic Python covering loading, data checks (missing orgs, ambiguous references, goals vs data, stale files), grounding validation (word-for-word quotes, matching numbers) and the PDF.
 - `plugins/network-focus/agents/`: `goal-scout` (Sonnet, one per goal) and `fact-checker` (Haiku, sees only the cited rows).
-- `plugins/network-focus/skills/`: `brief`, `check`, `setup-app`.
-- `plugins/network-focus/app/`: the local page and CEO dashboard (standard-library server, 127.0.0.1 only, token-protected).
+- `plugins/network-focus/skills/`: `brief`, `update` (mid-week, new people only), `check`, `setup-app`.
+- `plugins/network-focus/app/`: the local page and CEO dashboard (standard-library server, 127.0.0.1 only, token-protected). It reads the roster from *Google Drive › Network Focus* and watches it for new people.
 - `schemas/`: the JSON contracts shared by the agents and the validator.
 
 ## Docs
@@ -43,6 +43,6 @@ load_roster.py → goal-scout × N (parallel) → pick → validate_brief.py →
 ## Tests
 
 ```bash
-uv run pytest                                      # 129 unit tests, no API calls
-uv run python tests/evals/run_evals.py --grade     # 6 real end-to-end runs + grader (~$8)
+uv run pytest                                      # 240+ unit tests, no API calls
+uv run python tests/evals/run_evals.py --grade     # 9 real end-to-end runs (6 briefs, 3 mid-week updates) + grader
 ```
