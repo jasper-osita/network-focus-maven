@@ -56,11 +56,12 @@ Tie-breakers:
 
 Write `WORK/brief.json` so it follows `${CLAUDE_PLUGIN_ROOT}/schemas/brief.json` exactly:
 - `week_of`: copy roster.json `source.week_of`.
-- `focus`: 3–5 people.
+- `focus`: 3–5 people, **ordered by priority**. The first person is the single most important move this week, and the dashboard shows them as the #1.
   - `row_id` and `name` exactly as in roster.json, and `goals` as goal ids.
   - `why`, `move` and `risk`: one sentence each, specific to this person. Any "N days" must match the row.
   - `evidence`: 1–2 quotes, at least 3 words each, copied word for word from that contact's `text`.
   - `confidence`: "low" if `flags.thin` is true.
+- `message` (on every focus and dormant person): 3–5 sentences the CEO can paste and send, in her voice, with the specific ask and no sign-off name. If the move is a call, the message asks for the call. Greet the person by first name. Use only facts from that person's row, and don't write placeholders like [Name].
 - `dormant`: 2–3 people with `flags.dormant` true who aren't in focus and don't have `flags.thin`. Copy `days_since_contact` from the row.
 - `coming_up`: people to prepare for but not push yet (timing "later"). At most 2.
 - `goal_gaps`: any goal with no credible pick, and what's missing.

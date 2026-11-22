@@ -13,6 +13,9 @@ SCOUT_SCHEMA = json.loads((SCHEMAS / "scout-output.json").read_text())
 
 MIN_QUOTE_WORDS = 3
 MIN_MOVE_WORDS = 8
+MESSAGE_MIN_WORDS = 20
+MESSAGE_MAX_WORDS = 120
+PLACEHOLDERS = ("[", "{", "<", "todo", "lorem")
 MOVE_WORDS = ("email", "call", "coffee", "meeting", "intro", "message", "note", "lunch", "dinner",
               "reply", "send", "ask")
 _DAYS = re.compile(r"(\d+)\s+days?\b")
@@ -58,11 +61,25 @@ def _check_move_and_numbers(item: dict, row: dict, where: str, problems: list[Pr
         problems.append(Problem("VAGUE_MOVE", where,
                                 f"{where}: the move '{item['move']}' isn't specific. Say what to do, through which "
                                 "channel (email, call, coffee, intro...), and about what."))
-    for n in _DAYS.findall(item["why"]):
-        if row.get("days_since_contact") is None or int(n) != row["days_since_contact"]:
-            problems.append(Problem("NUMBER_MISMATCH", where,
-                                    f"{where}: says {n} days, but {row['name']}'s row says "
-                                    f"{row.get('days_since_contact')} days."))
+    message = item.get("message", "")
+    for field in ("why", "message"):
+        for n in _DAYS.findall(item.get(field, "")):
+            if row.get("days_since_contact") is None or int(n) != row["days_since_contact"]:
+                problems.append(Problem("NUMBER_MISMATCH", where,
+                                        f"{where}.{field}: says {n} days, but {row['name']}'s row says "
+                                        f"{row.get('days_since_contact')} days."))
+    n_words = len(message.split())
+    if not MESSAGE_MIN_WORDS <= n_words <= MESSAGE_MAX_WORDS:
+        problems.append(Problem("MESSAGE_LENGTH", where,
+                                f"{where}: the message is {n_words} words; write {MESSAGE_MIN_WORDS}-{MESSAGE_MAX_WORDS} "
+                                "words she can paste and send."))
+    first = row["name"].split()[0]
+    if first.casefold() not in message.casefold():
+        problems.append(Problem("MESSAGE_NAME", where, f"{where}: the message should greet {first} by name."))
+    if any(ph in message.casefold() for ph in PLACEHOLDERS):
+        problems.append(Problem("MESSAGE_PLACEHOLDER", where,
+                                f"{where}: the message has a placeholder or markup ([, {{, <, TODO). "
+                                "Write the finished text."))
 
 
 def validate_brief(brief: dict, roster: dict) -> list[Problem]:

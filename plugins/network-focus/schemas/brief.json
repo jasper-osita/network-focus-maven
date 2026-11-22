@@ -1,57 +1,202 @@
 {
   "title": "Network Focus brief (written by the brief skill, checked by validate_brief.py)",
   "type": "object",
-  "required": ["week_of", "focus", "dormant", "coming_up", "goal_gaps", "extra_checks"],
+  "required": [
+    "week_of",
+    "focus",
+    "dormant",
+    "coming_up",
+    "goal_gaps",
+    "extra_checks"
+  ],
   "properties": {
-    "week_of": {"type": "string", "minLength": 10, "description": "Copy roster.json source.week_of"},
+    "week_of": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Copy roster.json source.week_of"
+    },
     "focus": {
-      "type": "array", "minItems": 3, "maxItems": 5,
-      "description": "3-5 people to invest in this week",
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 5,
+      "description": "3-5 people to invest in this week, ordered by priority: focus[0] is the single most important move (the #1)",
       "items": {
         "type": "object",
-        "required": ["row_id", "name", "goals", "why", "move", "risk", "evidence", "confidence"],
+        "required": [
+          "row_id",
+          "name",
+          "goals",
+          "why",
+          "move",
+          "risk",
+          "evidence",
+          "confidence",
+          "message"
+        ],
         "properties": {
-          "row_id": {"type": "integer", "description": "Spreadsheet row number from roster.json"},
-          "name": {"type": "string", "minLength": 1, "description": "Exactly as in roster.json"},
-          "goals": {"type": "array", "minItems": 1, "items": {"type": "integer"}, "description": "Goal ids this person serves"},
-          "why": {"type": "string", "minLength": 1, "description": "Why they matter for her goals, grounded in the row. Any 'N days' must match the row."},
-          "move": {"type": "string", "minLength": 1, "description": "One concrete action this week through a named channel (email, call, coffee, intro...), 8+ words"},
-          "risk": {"type": "string", "minLength": 1, "description": "What's at risk if she doesn't act"},
-          "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "description": "Word-for-word quotes (3+ words) from this contact's row text"},
-          "confidence": {"type": "string", "enum": ["high", "medium", "low"], "description": "Must be low for contacts flagged thin"}
+          "row_id": {
+            "type": "integer",
+            "description": "Spreadsheet row number from roster.json"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Exactly as in roster.json"
+          },
+          "goals": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "integer"
+            },
+            "description": "Goal ids this person serves"
+          },
+          "why": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Why they matter for her goals, grounded in the row. Any 'N days' must match the row."
+          },
+          "move": {
+            "type": "string",
+            "minLength": 1,
+            "description": "One concrete action this week through a named channel (email, call, coffee, intro...), 8+ words"
+          },
+          "risk": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What's at risk if she doesn't act"
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Word-for-word quotes (3+ words) from this contact's row text"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "description": "Must be low for contacts flagged thin"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "description": "3-5 sentences the CEO can paste and send: her voice, the specific ask, no sign-off name, 20-120 words, includes the person's first name, no placeholders ([ { < TODO), only facts from this person's row; any 'N days' must match the row"
+          }
         }
       }
     },
     "dormant": {
-      "type": "array", "maxItems": 3,
+      "type": "array",
+      "maxItems": 3,
       "description": "2-3 people at 60+ days who are still high-leverage, not already in focus",
       "items": {
         "type": "object",
-        "required": ["row_id", "name", "days_since_contact", "why", "move", "evidence"],
+        "required": [
+          "row_id",
+          "name",
+          "days_since_contact",
+          "why",
+          "move",
+          "evidence",
+          "message"
+        ],
         "properties": {
-          "row_id": {"type": "integer"},
-          "name": {"type": "string", "minLength": 1},
-          "days_since_contact": {"type": "integer", "description": "Must equal the row's value, and be 60 or more"},
-          "why": {"type": "string", "minLength": 1},
-          "move": {"type": "string", "minLength": 1},
-          "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+          "row_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "days_since_contact": {
+            "type": "integer",
+            "description": "Must equal the row's value, and be 60 or more"
+          },
+          "why": {
+            "type": "string",
+            "minLength": 1
+          },
+          "move": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "description": "3-5 sentences the CEO can paste and send: her voice, the specific ask, no sign-off name, 20-120 words, includes the person's first name, no placeholders ([ { < TODO), only facts from this person's row; any 'N days' must match the row"
+          }
         }
       }
     },
     "coming_up": {
-      "type": "array", "maxItems": 2,
+      "type": "array",
+      "maxItems": 2,
       "description": "People to prepare for but not push this week (e.g. asked her to wait)",
-      "items": {"type": "object", "required": ["row_id", "name", "note"],
-                "properties": {"row_id": {"type": "integer"}, "name": {"type": "string", "minLength": 1},
-                               "note": {"type": "string", "minLength": 1}}}
+      "items": {
+        "type": "object",
+        "required": [
+          "row_id",
+          "name",
+          "note"
+        ],
+        "properties": {
+          "row_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     },
     "goal_gaps": {
       "type": "array",
       "description": "Goals with no credible pick this week, and what's missing",
-      "items": {"type": "object", "required": ["goal_id", "note"],
-                "properties": {"goal_id": {"type": "integer"}, "note": {"type": "string", "minLength": 1}}}
+      "items": {
+        "type": "object",
+        "required": [
+          "goal_id",
+          "note"
+        ],
+        "properties": {
+          "goal_id": {
+            "type": "integer"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     },
-    "extra_checks": {"type": "array", "maxItems": 3, "items": {"type": "string", "minLength": 1},
-                     "description": "Data problems the model noticed that code did not (e.g. a row that contradicts itself)"}
+    "extra_checks": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Data problems the model noticed that code did not (e.g. a row that contradicts itself)"
+    }
   }
 }

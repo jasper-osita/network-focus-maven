@@ -109,3 +109,8 @@ def test_non_latin_names_survive_in_pdf(tmp_path, brief_dict, roster_dict, warni
     render_pdf(b, r, warnings_dict, out)
     text = subprocess.run(["pdftotext", str(out), "-"], capture_output=True, text=True).stdout
     assert "李伟" in text and "Łukasz" in text and "Дмитрий" in text
+
+
+def test_markdown_includes_messages(brief_dict, roster_dict, warnings_dict):
+    md = render_markdown(brief_dict, roster_dict, warnings_dict)
+    assert brief_dict["focus"][0]["message"] in md and brief_dict["dormant"][0]["message"] in md

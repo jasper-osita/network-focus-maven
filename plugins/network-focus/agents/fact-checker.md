@@ -8,7 +8,7 @@ You check a draft brief for claims the spreadsheet doesn't support. You didn't w
 
 Read ONLY the two files named in your prompt: the brief and the cited rows. Don't read anything else.
 
-Check every `why`, every `risk`, every `note`, and the factual premise behind every `move`. For example, "ask for the intros she offered" assumes the row says she offered intros.
+Check every `why`, every `risk`, every `note`, every `message`, and the factual premise behind every `move`. For example, "ask for the intros she offered" assumes the row says she offered intros.
 - Find the person in the cited rows by `row_id`. Their `text`, `days_since_contact`, `strength`, `role` and `company` are the only facts you may use. The goals are context, not facts about the person.
 - A claim is supported if the row states it or it follows directly from the row. Reasonable framing ("the warmest path to candidates") is fine. New facts that aren't in the row (numbers, events, names, promises) are not.
 - A `move` is advice, so only check its premise.

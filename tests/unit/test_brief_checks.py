@@ -30,6 +30,11 @@ def brief():
     return json.loads(FIXTURE.read_text())
 
 
+def msg(first):
+    return (f"Hi {first}, I wanted to follow up on our last conversation and ask whether you would be open "
+            "to a short call this week about something specific I think you can help with.")
+
+
 def codes(problems):
     return [p.code for p in problems]
 
@@ -84,7 +89,7 @@ def test_dormant_rules(brief, roster):
     b["dormant"][1] = {"row_id": lin["row_id"], "name": "Lin Wang", "days_since_contact": 59,
                        "why": "Casual Anthropic researcher she checks in with quarterly.",
                        "move": "Send Lin a short note asking for an intro to two Anthropic researchers.",
-                       "evidence": ["Quarterly check-in note"]}
+                       "evidence": ["Quarterly check-in note"], "message": msg("Lin")}
     assert "NOT_DORMANT" in codes(validate_brief(b, roster))
     b = copy.deepcopy(brief)
     b["dormant"][0]["days_since_contact"] = 100
@@ -95,7 +100,7 @@ def test_duplicate_person(brief, roster):
     b = copy.deepcopy(brief)
     b["dormant"][0] = {"row_id": 6, "name": "Reid Hoffman", "days_since_contact": 81,
                        "why": "Strongest investor relationship.", "move": "Email Reid a personal note asking for a call.",
-                       "evidence": ["Strongest investor relationship she has"]}
+                       "evidence": ["Strongest investor relationship she has"], "message": msg("Reid")}
     assert "DUPLICATE_PERSON" in codes(validate_brief(b, roster))
 
 
@@ -103,7 +108,8 @@ def test_thin_needs_low_confidence(brief, roster):
     b = copy.deepcopy(brief)
     b["focus"][4] = {"row_id": 10, "name": "Anjali Sharma", "goals": [1], "why": "Stealth founder met once.",
                      "move": "Email Anjali a short note asking what she is building now.",
-                     "risk": "Unknown.", "evidence": ["Met at conference. Exchanged cards"], "confidence": "medium"}
+                     "risk": "Unknown.", "evidence": ["Met at conference. Exchanged cards"], "confidence": "medium",
+                     "message": msg("Anjali")}
     b["focus"][3]["goals"] = [3]
     assert "THIN_NOT_LOW" in codes(validate_brief(b, roster))
     b["focus"][4]["confidence"] = "low"
@@ -171,10 +177,23 @@ def test_thin_contact_rejected_in_dormant(brief, roster):
     b = copy.deepcopy(brief)
     b["dormant"][1] = {"row_id": 11, "name": "Jensen Huang", "days_since_contact": 199,
                        "why": "NVIDIA CEO met briefly at GTC.", "move": "Email Jensen a short note asking for a call about AI.",
-                       "evidence": ["Met briefly at GTC"]}
+                       "evidence": ["Met briefly at GTC"], "message": msg("Jensen")}
     assert "THIN_IN_DORMANT" in codes(validate_brief(b, roster))
 
 
 def test_week_of_must_match(brief, roster):
     for bad in ("2025-01-06", "Nov 23, 2026"):
         assert "WEEK_MISMATCH" in codes(validate_brief({**brief, "week_of": bad}, roster))
+
+
+def test_message_rules(brief, roster):
+    b = copy.deepcopy(brief); b["focus"][0]["message"] = "Hi Diana, quick one."
+    assert codes(validate_brief(b, roster)) == ["MESSAGE_LENGTH"]
+    b = copy.deepcopy(brief); b["focus"][0]["message"] = b["focus"][0]["message"].replace("Diana", "there")
+    assert codes(validate_brief(b, roster)) == ["MESSAGE_NAME"]
+    b = copy.deepcopy(brief); b["focus"][0]["message"] += " [Your name]"
+    assert codes(validate_brief(b, roster)) == ["MESSAGE_PLACEHOLDER"]
+    b = copy.deepcopy(brief); b["dormant"][0]["message"] += " It has been 90 days."
+    assert codes(validate_brief(b, roster)) == ["NUMBER_MISMATCH"]
+    b = copy.deepcopy(brief); del b["dormant"][1]["message"]
+    assert "SCHEMA" in codes(validate_brief(b, roster))

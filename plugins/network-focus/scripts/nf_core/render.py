@@ -134,11 +134,14 @@ def render_markdown(brief: dict, roster: dict, warnings: dict) -> str:
         goals = " + ".join(c["goals"].get(g, f"Goal {g}") for g in f["goals"])
         low = " · low confidence" if f["confidence"] == "low" else ""
         lines += [f"### {i}. {f['name']} · {c['who'](f)} · {goals}{low}",
-                  f"- **Why:** {f['why']}", f"- **Move:** {f['move']}", f"- **At risk:** {f['risk']}", ""]
+                  f"- **Why:** {f['why']}", f"- **Move:** {f['move']}", f"- **At risk:** {f['risk']}"]
+        if f.get("message"):
+            lines.append(f"- **Message:** {f['message']}")
+        lines.append("")
     lines += [f"## DORMANT BUT HIGH-LEVERAGE ({len(brief['dormant'])})", ""]
     for d in brief["dormant"]:
         lines.append(f"- **{d['name']}** · {c['who'](d)} · {d['days_since_contact']} days. {d['why']} "
-                     f"**Move:** {d['move']}")
+                     f"**Move:** {d['move']}" + (f" **Message:** {d['message']}" if d.get("message") else ""))
     lines.append("")
     if brief.get("coming_up") or c["soon"]:
         lines += ["## COMING UP", ""] + [f"- **{x['name']}**: {x['note']}" for x in brief["coming_up"]]
