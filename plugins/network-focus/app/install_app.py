@@ -84,7 +84,8 @@ def webloc_xml(url: str) -> bytes:
 
 def _win_folder(name: str, home: Path) -> Path:
     """The real (possibly OneDrive-redirected) folder for the signed-in user; plain home/<name> otherwise."""
-    kf = _known_folder(name) if home == Path.home() else None
+    use_real = home == Path.home() and not os.environ.get("NF_INSTALL_TEST")  # tests never touch real folders
+    kf = _known_folder(name) if use_real else None
     return kf or home / name
 
 
@@ -144,12 +145,12 @@ def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True
                         "Until it is, make briefs in the Claude app by typing 'make this week's network brief'.")
 
     cfg_path = app_dir / "config.json"
-    old = json.loads(cfg_path.read_text()) if cfg_path.exists() else {}
+    old = json.loads(cfg_path.read_text(encoding="utf-8")) if cfg_path.exists() else {}
     cfg = {"port": port, "token": old.get("token") or secrets.token_urlsafe(24),
            "nf_home": str(nf_home), "claude_path": claude or "claude",
            "claude_args": claude_args(nf_home, plugin_root.resolve(), windows), "uv_path": uv,
            "scripts_dir": str(app_dir / "scripts")}
-    cfg_path.write_text(json.dumps(cfg, indent=2))
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     cfg_path.chmod(0o600)
     url = f"http://127.0.0.1:{port}/?t={cfg['token']}"
 
@@ -159,7 +160,7 @@ def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True
         vbs.write_bytes(vbs_script(app_dir, uv, app_dir / "server.py", cfg_path).encode("utf-16"))  # BOM: non-ASCII paths
         shortcut = desktop / "Network Focus.url"
         shortcut.parent.mkdir(parents=True, exist_ok=True)
-        shortcut.write_text(f"[InternetShortcut]\r\nURL={url}\r\n")
+        shortcut.write_text(f"[InternetShortcut]\r\nURL={url}\r\n", encoding="utf-8")
         if launch:
             _stop_old_server(port, old.get("token"))
             subprocess.Popen(["wscript.exe", str(vbs)], creationflags=getattr(subprocess, "DETACHED_PROCESS", 0))

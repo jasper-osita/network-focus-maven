@@ -69,7 +69,7 @@ def setup_checks(home: Path, port: int = 8765) -> list[CheckResult]:
                                                  "Open it and check they're still right."))
     else:
         try:
-            goals = parse_goals(ws.goals_path.read_text())
+            goals = parse_goals(ws.goals_path.read_text(encoding="utf-8"))
             res.append(CheckResult("goals.md", "ok", f"{len(goals)} goals: " + "; ".join(g.title for g in goals)))
         except BlockingError as e:
             res.append(CheckResult("goals.md", "fail", e.issue.message, "Open goals.md and fix that line."))
@@ -97,7 +97,7 @@ def setup_checks(home: Path, port: int = 8765) -> list[CheckResult]:
     try:
         ws.briefs.mkdir(parents=True, exist_ok=True)
         probe = ws.briefs / ".write-test"
-        probe.write_text("ok")
+        probe.write_text("ok", encoding="utf-8")
         probe.unlink()
         res.append(CheckResult("Briefs folder", "ok", f"Briefs are saved in {ws.briefs}."))
     except OSError:
@@ -111,6 +111,8 @@ def main(argv=None) -> int:
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--port", type=int, default=8765)
     a = ap.parse_args(argv)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # ✅/❌ crash a piped Windows console otherwise
     results = setup_checks(nf_home(), a.port)
     if a.json:
         print(json.dumps([asdict(r) for r in results]))

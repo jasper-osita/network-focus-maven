@@ -67,9 +67,9 @@ def test_missing_folder(tmp_path):
 
 def test_cli_output_and_json(home):
     env = {**os.environ, "NF_HOME": str(home)}
-    p = subprocess.run([sys.executable, str(CLI), "--port", str(FREE_PORT)], capture_output=True, text=True, env=env)
+    p = subprocess.run([sys.executable, str(CLI), "--port", str(FREE_PORT)], capture_output=True, text=True, encoding="utf-8", env=env)
     lines = [l for l in p.stdout.splitlines() if l and not l.startswith("   ")]
     assert p.returncode == 0 and lines and all(l[0] in "✅❌ℹ" for l in lines)
-    j = subprocess.run([sys.executable, str(CLI), "--json", "--port", str(FREE_PORT)], capture_output=True, text=True, env=env)
+    j = subprocess.run([sys.executable, str(CLI), "--json", "--port", str(FREE_PORT)], capture_output=True, text=True, encoding="utf-8", env=env)
     data = json.loads(j.stdout)
     assert {"name", "status", "detail", "fix"} <= set(data[0])

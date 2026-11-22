@@ -24,7 +24,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     work = Path(a.work)
     ws = Workspace(work.parent)
-    brief, roster, warnings = (json.loads((work / n).read_text()) for n in ("brief.json", "roster.json", "warnings.json"))
+    brief, roster, warnings = (json.loads((work / n).read_text(encoding="utf-8")) for n in ("brief.json", "roster.json", "warnings.json"))
     problems = validate_brief(brief, roster)
     if problems:
         print(json.dumps({"ok": False, "message": "The brief didn't pass its checks, so no PDF was made.",
@@ -42,9 +42,9 @@ def main(argv=None) -> int:
             return 4
         pdf, md = ws.briefs / f"{stem}.pdf", ws.briefs / f"{stem}.md"
         pdf.write_bytes(tmp_pdf.read_bytes())
-    md.write_text(render_markdown(brief, roster, warnings))
+    md.write_text(render_markdown(brief, roster, warnings), encoding="utf-8")
     snap = ws.briefs / f"{stem}.json"  # the CEO dashboard reads this; .work/ is cleared every run
-    snap.write_text(json.dumps(build_snapshot(brief, roster, warnings), indent=2, ensure_ascii=False))
+    snap.write_text(json.dumps(build_snapshot(brief, roster, warnings), indent=2, ensure_ascii=False), encoding="utf-8")
     today = date.fromisoformat(a.today) if a.today else date.today()
     record_run(ws, {"sha256": roster["source"]["sha256"], "file_name": roster["source"]["file_name"],
                     "run_date": today.isoformat(), "brief": pdf.name})

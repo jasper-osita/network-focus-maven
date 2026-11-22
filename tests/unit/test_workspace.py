@@ -16,7 +16,7 @@ SCRIPT = ROOT / "plugins" / "network-focus" / "scripts" / "load_roster.py"
 
 
 def run_cli(home: Path, *args):
-    p = subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True,
+    p = subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True, encoding="utf-8",
                        env={**os.environ, "NF_HOME": str(home)})
     return p.returncode, json.loads(p.stdout.strip().splitlines()[-1]), p.stdout
 

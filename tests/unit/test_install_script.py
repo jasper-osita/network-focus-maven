@@ -7,11 +7,13 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import sys
 
 from conftest import ROOT
 
 PLUGIN = ROOT / "plugins" / "network-focus"
 UV_DIR = str(Path(shutil.which("uv")).parent)
+needs_bash = pytest.mark.skipif(sys.platform == "win32", reason="bash installer runs on macOS/Linux")
 
 STUB_CLAUDE = r'''#!/usr/bin/env python3
 import json, os, sys
@@ -69,7 +71,7 @@ def env(tmp_path):
 
 
 def run(env, *args):
-    p = subprocess.run(["bash", str(ROOT / "install.sh"), *args], env=env["env"], capture_output=True, text=True,
+    p = subprocess.run(["bash", str(ROOT / "install.sh"), *args], env=env["env"], capture_output=True, text=True, encoding="utf-8",
                        timeout=180)
     calls = (env["state"] / "calls.log").read_text() if (env["state"] / "calls.log").exists() else ""
     return p, calls
@@ -79,6 +81,7 @@ def app_dir(env):
     return env["home"] / "Library" / "Application Support" / "Network Focus"
 
 
+@needs_bash
 def test_fresh_install(env):
     p, calls = run(env)
     assert p.returncode == 0, p.stdout + p.stderr
@@ -90,6 +93,7 @@ def test_fresh_install(env):
     assert (env["home"] / "Library" / "Logs" / "NetworkFocus-install.log").exists()
 
 
+@needs_bash
 def test_rerun_updates(env):
     run(env)
     (env["state"] / "calls.log").unlink()
@@ -99,6 +103,7 @@ def test_rerun_updates(env):
     assert "plugin marketplace update network-focus" in calls and "plugin update network-focus@network-focus" in calls
 
 
+@needs_bash
 def test_login_failure_stops(env):
     env["env"]["STUB_LOGIN_FAILS"] = "1"
     p, calls = run(env)
@@ -106,6 +111,7 @@ def test_login_failure_stops(env):
     assert "plugin install" not in calls and not app_dir(env).exists()
 
 
+@needs_bash
 def test_missing_helper_installed(env):
     (env["bin"] / "claude").unlink()
     p, calls = run(env)
@@ -113,6 +119,7 @@ def test_missing_helper_installed(env):
     assert "claude.ai/install.sh" in calls and "astral.sh" not in calls
 
 
+@needs_bash
 def test_uninstall_keeps_briefs(env):
     run(env)
     briefs = env["home"] / "Documents" / "Network Focus" / "briefs"
@@ -125,6 +132,7 @@ def test_uninstall_keeps_briefs(env):
     assert "plugin uninstall network-focus@network-focus" in calls
 
 
+@needs_bash
 def test_command_file():
     cmd = ROOT / "Install Network Focus.command"
     text = cmd.read_text()
@@ -132,9 +140,18 @@ def test_command_file():
     assert "install.sh" in text and "https://raw.githubusercontent.com/jasper-osita/network-focus-maven/main/install.sh" in text
 
 
-def test_deliverable_zip_keeps_installer_executable():
+def test_deliverable_zip_has_both_installers():
     import zipfile
     with zipfile.ZipFile(ROOT / "deliverables" / "Install Network Focus.zip") as z:
-        info = z.getinfo("Install Network Focus.command")
-        assert (info.external_attr >> 16) & 0o111, "unzipped installer must stay double-clickable"
-        assert z.read(info) == (ROOT / "Install Network Focus.command").read_bytes(), "zip is out of date"
+        mac = z.getinfo("Mac - Install Network Focus.command")
+        assert (mac.external_attr >> 16) & 0o111, "unzipped Mac installer must stay double-clickable"
+        assert z.read(mac) == (ROOT / "Install Network Focus.command").read_bytes(), "zip is out of date"
+        assert z.read("Windows - Install Network Focus.cmd") == (ROOT / "Install Network Focus.cmd").read_bytes()
+
+
+def test_windows_cmd_file():
+    text = (ROOT / "Install Network Focus.cmd").read_bytes().decode()
+    assert "\r\n" in text and "-ExecutionPolicy Bypass" in text and "install.ps1" in text
+    assert "https://raw.githubusercontent.com/jasper-osita/network-focus-maven/main/install.ps1" in text
+    ps1 = (ROOT / "install.ps1").read_bytes()
+    assert ps1.isascii(), "PowerShell 5.1 misreads non-ASCII in BOM-less files"

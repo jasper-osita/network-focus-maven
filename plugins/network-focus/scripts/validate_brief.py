@@ -23,15 +23,15 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default="")
     a = ap.parse_args(argv)
     try:
-        doc = json.loads(Path(a.file).read_text())
-        roster = json.loads(Path(a.roster).read_text())
+        doc = json.loads(Path(a.file).read_text(encoding="utf-8"))
+        roster = json.loads(Path(a.roster).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as e:
         print(json.dumps({"ok": False, "problems": [{"code": "BAD_JSON", "where": a.file,
                                                      "message": f"Couldn't read {a.file} as JSON: {e}"}]}))
         return 1
     if a.mode == "cited-rows":
         out = Path(a.out) if a.out else Path(a.file).with_name("cited-rows.json")
-        out.write_text(json.dumps(cited_rows(doc, roster), indent=2))
+        out.write_text(json.dumps(cited_rows(doc, roster), indent=2), encoding="utf-8")
         print(json.dumps({"ok": True, "problems": [], "out": str(out)}))
         return 0
     try:

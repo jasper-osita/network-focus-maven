@@ -20,7 +20,7 @@ def _snapshots(nf_home: Path) -> list[dict]:
     snaps = []
     for f in (Path(nf_home) / "briefs").glob(SNAPSHOT_GLOB):
         try:
-            s = json.loads(f.read_text())
+            s = json.loads(f.read_text(encoding="utf-8"))
             if isinstance(s, dict) and isinstance(s.get("brief"), dict) and s.get("week_of"):
                 snaps.append(s)
         except (OSError, ValueError):
@@ -30,7 +30,7 @@ def _snapshots(nf_home: Path) -> list[dict]:
 
 def load_progress(nf_home: Path) -> dict:
     try:
-        data = json.loads((Path(nf_home) / PROGRESS_FILE).read_text())
+        data = json.loads((Path(nf_home) / PROGRESS_FILE).read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
         return {}
@@ -56,7 +56,7 @@ def set_done(nf_home: Path, week: str, row_id: int, done: bool, name: str) -> No
         week_marks.pop(str(row_id), None)
     data[week] = week_marks
     fd, tmp = tempfile.mkstemp(dir=nf_home, prefix=".progress-", suffix=".tmp")
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     os.replace(tmp, Path(nf_home) / PROGRESS_FILE)
 

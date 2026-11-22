@@ -1,6 +1,7 @@
 import http.client
 import json
 import shutil
+import sys
 import threading
 from pathlib import Path
 
@@ -20,7 +21,11 @@ def server(tmp_path, monkeypatch):
     (home / "briefs").mkdir()
     shutil.copy(TEMPLATE_GOALS, home / "goals.md")
     shutil.copy(ROOT / "sample-data" / "network_roster_terragrid.xlsx", home / "inbox")
-    cfg = AppConfig(port=0, token=TOKEN, nf_home=home, claude_path=FAKE, claude_args=[], uv_path="uv",
+    fake = FAKE
+    if sys.platform == "win32":  # Windows can't run a .py file directly
+        fake = str(tmp_path / "fake_claude.cmd")
+        Path(fake).write_text(f'@"{sys.executable}" "{FAKE}" %*\r\n')
+    cfg = AppConfig(port=0, token=TOKEN, nf_home=home, claude_path=fake, claude_args=[], uv_path="uv",
                     scripts_dir=ROOT / "plugins" / "network-focus" / "scripts")
     srv = make_server(cfg)
     threading.Thread(target=srv.serve_forever, daemon=True).start()

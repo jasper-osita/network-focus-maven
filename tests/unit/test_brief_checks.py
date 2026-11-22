@@ -167,7 +167,7 @@ def test_cli_exit_codes(tmp_path, brief, roster):
     good.write_text(json.dumps(brief))
     bad.write_text(json.dumps({**brief, "focus": brief["focus"][:1]}))
     run = lambda f: subprocess.run([sys.executable, str(CLI), "brief", str(f), "--roster", str(rp)],
-                                   capture_output=True, text=True)
+                                   capture_output=True, text=True, encoding="utf-8")
     g, b = run(good), run(bad)
     assert g.returncode == 0 and json.loads(g.stdout)["ok"] is True
     assert b.returncode == 1 and json.loads(b.stdout)["ok"] is False and json.loads(b.stdout)["problems"]

@@ -60,7 +60,7 @@ def setup_work(tmp_path, brief, roster, warnings):
 
 def run_cli(home, *args):
     p = subprocess.run([sys.executable, str(CLI), "--work", str(home / ".work"), *args],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8")
     return p.returncode, json.loads(p.stdout)
 
 
@@ -107,7 +107,7 @@ def test_non_latin_names_survive_in_pdf(tmp_path, brief_dict, roster_dict, warni
         next(c for c in r["contacts"] if c["row_id"] == row)["name"] = name
     out = tmp_path / "b.pdf"
     render_pdf(b, r, warnings_dict, out)
-    text = subprocess.run(["pdftotext", str(out), "-"], capture_output=True, text=True).stdout
+    text = subprocess.run(["pdftotext", str(out), "-"], capture_output=True, text=True, encoding="utf-8").stdout
     assert "李伟" in text and "Łukasz" in text and "Дмитрий" in text
 
 

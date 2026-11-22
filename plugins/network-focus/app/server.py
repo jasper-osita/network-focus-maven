@@ -47,7 +47,7 @@ class AppConfig:
 
     @classmethod
     def load(cls, path: Path) -> "AppConfig":
-        d = json.loads(Path(path).read_text())
+        d = json.loads(Path(path).read_text(encoding="utf-8"))
         return cls(port=d["port"], token=d["token"], nf_home=Path(d["nf_home"]), claude_path=d["claude_path"],
                    claude_args=d.get("claude_args", list(DEFAULT_CLAUDE_ARGS)), uv_path=d.get("uv_path", "uv"),
                    scripts_dir=Path(d.get("scripts_dir", HERE / "scripts")), run_timeout=d.get("run_timeout", 900))
@@ -72,10 +72,10 @@ class Run:
         prompt = "/network-focus:brief" + (f" {cfg.nf_home / 'inbox' / self.file}" if self.file else "")
         result_text, stderr, last, timed_out = "", "", None, threading.Event()
         try:
-            with tempfile.TemporaryFile(mode="w+") as err:  # a file, so a chatty stderr can't block stdout
+            with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as err:  # a file, so a chatty stderr can't block stdout
                 p = subprocess.Popen([cfg.claude_path, "-p", prompt, *cfg.claude_args], cwd=cfg.nf_home,
                                      env={**os.environ, "NF_HOME": str(cfg.nf_home)}, stdin=subprocess.DEVNULL,
-                                     stdout=subprocess.PIPE, stderr=err, text=True)
+                                     stdout=subprocess.PIPE, stderr=err, text=True, encoding="utf-8", errors="replace")
                 watchdog = threading.Timer(cfg.run_timeout, lambda: (timed_out.set(), p.kill()))
                 watchdog.daemon = True
                 watchdog.start()
@@ -294,7 +294,7 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
             if url.path == "/api/check":
                 try:
                     p = subprocess.run([cfg.uv_path, "run", str(cfg.scripts_dir / "check_setup.py"), "--json",
-                                        "--port", str(cfg.port)], capture_output=True, text=True,
+                                        "--port", str(cfg.port)], capture_output=True, text=True, encoding="utf-8",
                                        env={**os.environ, "NF_HOME": str(cfg.nf_home)}, timeout=120)
                     return self._json(200, {"results": json.loads(p.stdout.strip().splitlines()[-1])})
                 except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError, IndexError):

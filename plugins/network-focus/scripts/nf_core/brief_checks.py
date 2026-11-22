@@ -8,8 +8,8 @@ from .checks import DORMANT_DAYS
 from .shape import Problem, check_shape
 
 SCHEMAS = Path(__file__).resolve().parents[2] / "schemas"
-BRIEF_SCHEMA = json.loads((SCHEMAS / "brief.json").read_text())
-SCOUT_SCHEMA = json.loads((SCHEMAS / "scout-output.json").read_text())
+BRIEF_SCHEMA = json.loads((SCHEMAS / "brief.json").read_text(encoding="utf-8"))
+SCOUT_SCHEMA = json.loads((SCHEMAS / "scout-output.json").read_text(encoding="utf-8"))
 
 MIN_QUOTE_WORDS = 3
 MIN_MOVE_WORDS = 8

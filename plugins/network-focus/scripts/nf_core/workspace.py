@@ -144,7 +144,7 @@ def staleness_issues(path: Path, sha: str, history: list[dict], today: date) -> 
 
 def load_history(ws: Workspace) -> list[dict]:
     try:
-        data = json.loads(ws.history_path.read_text())
+        data = json.loads(ws.history_path.read_text(encoding="utf-8"))
         return data if isinstance(data, list) else []
     except (FileNotFoundError, json.JSONDecodeError):
         return []
@@ -153,4 +153,4 @@ def load_history(ws: Workspace) -> list[dict]:
 def record_run(ws: Workspace, entry: dict) -> None:
     history = load_history(ws)
     history.append(entry)
-    ws.history_path.write_text(json.dumps(history, indent=2))
+    ws.history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")

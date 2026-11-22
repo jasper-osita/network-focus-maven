@@ -42,7 +42,7 @@ def main(argv=None) -> int:
             return emit("setup", f"I set up your Network Focus folder at {ws.root}. Put this week's spreadsheet in "
                                  f"the inbox folder ({ws.inbox}) and run the brief again. The CEO's goals are in "
                                  "goals.md there; check they're still right.", 3, work_dir=str(ws.work))
-        goals = parse_goals(ws.goals_path.read_text())
+        goals = parse_goals(ws.goals_path.read_text(encoding="utf-8"))
         roster_path, pick_issues = pick_roster(ws, Path(args.roster) if args.roster else None)
         contacts, cell_issues = read_roster(roster_path)
         sha = fingerprint(roster_path)
@@ -54,8 +54,8 @@ def main(argv=None) -> int:
             "goals": [g.to_dict() for g in goals],
             "contacts": [{**c.to_dict(), "text": c.text(), "flags": flags_for(c)} for c in contacts],
         }
-        (ws.work / "roster.json").write_text(json.dumps(roster, indent=2))
-        (ws.work / "warnings.json").write_text(json.dumps({"warnings": [w.to_dict() for w in warnings]}, indent=2))
+        (ws.work / "roster.json").write_text(json.dumps(roster, indent=2), encoding="utf-8")
+        (ws.work / "warnings.json").write_text(json.dumps({"warnings": [w.to_dict() for w in warnings]}, indent=2), encoding="utf-8")
         n_warn = sum(w.severity == "warn" for w in warnings)
         return emit("ok", f"Loaded {len(contacts)} contacts from {roster_path.name}. "
                           f"{n_warn} things to check with the CEO.", 0,
@@ -65,7 +65,7 @@ def main(argv=None) -> int:
     except Exception:
         try:
             ws.work.mkdir(parents=True, exist_ok=True)
-            (ws.work / "error.log").write_text(traceback.format_exc())
+            (ws.work / "error.log").write_text(traceback.format_exc(), encoding="utf-8")
         except OSError:
             pass
         return emit("blocked", f"Something unexpected went wrong reading the spreadsheet. "
