@@ -20,7 +20,8 @@ LABEL = "com.networkfocus.app"
 APP_FILES = ("server.py", "index.html", "progress.py", "dashboard_data.py")
 WIN_STARTUP_PARTS = ("AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from nf_core.workspace import _known_folder  # noqa: E402  (stdlib-only module)
+from nf_core.drive import FOLDER_NAME, find_my_drive  # noqa: E402  (stdlib-only modules)
+from nf_core.workspace import _known_folder, load_settings, save_settings  # noqa: E402
 
 
 def background_allowed_tools(nf_home: Path, plugin_root: Path, windows: bool = False) -> str:
@@ -115,8 +116,34 @@ def _stop_old_server(port: int, token: str | None) -> None:
         time.sleep(0.3)
 
 
+NO_DRIVE = ("Google Drive isn't set up on this computer. Install Google Drive for desktop, sign in, then run the "
+            "installer again. Until then, drag spreadsheets onto the page as before.")
+
+
+def setup_drive_folder(nf_home: Path, home: Path, system: str, drive_roots: list[Path] | None,
+                       warnings: list[str]) -> Path | None:
+    """Create My Drive/Network Focus, remember it in settings.json, and seed it with the local roster once."""
+    if drive_roots is None and os.environ.get("NF_INSTALL_TEST") and system == "win32":
+        drive_roots = []  # test runs never scan the machine's real drive letters
+    drives = find_my_drive(home, system, drive_roots)
+    if not drives:
+        warnings.append(NO_DRIVE)
+        return None
+    if len(drives) > 1:
+        warnings.append(f"Google Drive has more than one account on this computer. Using {drives[0].parent.name}.")
+    folder = drives[0] / FOLDER_NAME
+    folder.mkdir(parents=True, exist_ok=True)
+    save_settings(nf_home, {**load_settings(nf_home), "roster_folder": str(folder)})
+    sheets = lambda d: [f for f in d.glob("*") if f.suffix.lower() in (".xlsx", ".csv")
+                        and not f.name.startswith(("~$", "."))]
+    local = sorted(sheets(nf_home / "inbox"), key=lambda f: f.stat().st_mtime)
+    if local and not sheets(folder):
+        shutil.copy2(local[-1], folder / local[-1].name)
+    return folder
+
+
 def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True, system: str | None = None,
-            nf_home: Path | None = None) -> dict:
+            nf_home: Path | None = None, drive_roots: list[Path] | None = None) -> dict:
     windows = (system or sys.platform) == "win32"
     if windows:
         app_dir = home / "AppData" / "Local" / "Network Focus"
@@ -138,6 +165,7 @@ def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True
     (app_dir / "logs").mkdir(exist_ok=True)
 
     warnings = []
+    roster_folder = setup_drive_folder(nf_home, home, "win32" if windows else "darwin", drive_roots, warnings)
     uv = find_tool("uv") or "uv"
     claude = find_tool("claude", [str(home / ".local" / "bin" / "claude"), str(home / ".claude" / "local" / "claude")])
     if not claude:
@@ -168,7 +196,7 @@ def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True
                 warnings.append("The page didn't start straight away. Restart the computer and it will start on "
                                 "sign-in; if it still won't open, run the installer again.")
         return {"url": url, "app_dir": str(app_dir), "startup": str(vbs), "shortcut": str(shortcut),
-                "warnings": warnings}
+                "roster_folder": str(roster_folder) if roster_folder else None, "warnings": warnings}
 
     dirs = [str(Path(t).parent) for t in (uv, claude) if t and "/" in t]
     path_env = ":".join(dict.fromkeys(dirs + ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"]))
@@ -187,7 +215,8 @@ def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True
         if r.returncode != 0 or not _page_answers(port):
             warnings.append("The page didn't start straight away. Restart the Mac and it will start on login; "
                             "if it still won't open, run /network-focus:setup-app again.")
-    return {"url": url, "app_dir": str(app_dir), "plist": str(plist), "webloc": str(webloc), "warnings": warnings}
+    return {"url": url, "app_dir": str(app_dir), "plist": str(plist), "webloc": str(webloc),
+            "roster_folder": str(roster_folder) if roster_folder else None, "warnings": warnings}
 
 
 def main(argv=None) -> int:

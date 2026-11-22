@@ -235,3 +235,33 @@ def test_failed_run_explains_and_keeps_a_log(server, monkeypatch):
     assert final["status"] == "failed" and "usage limit" in final["message"]
     log = Path(final["log"])
     assert log.exists() and "error_during_execution" in log.read_text(encoding="utf-8") and "429" in log.read_text(encoding="utf-8")
+
+
+# ---- Google Drive folder ----
+def use_drive(srv, tmp_path):
+    from nf_core.workspace import save_settings
+    folder = tmp_path / "Drive" / "Network Focus"
+    folder.mkdir(parents=True)
+    shutil.copy(ROOT / "sample-data" / "network_roster_terragrid.xlsx", folder / "drive-roster.xlsx")
+    save_settings(srv.cfg.nf_home, {"roster_folder": str(folder)})
+    return folder
+
+
+def test_status_lists_drive_folder(server, tmp_path):
+    use_drive(server, tmp_path)
+    data = json.loads(call(server, "GET", "/api/status")[1])
+    assert [f["name"] for f in data["inbox"]] == ["drive-roster.xlsx"]
+
+
+def test_upload_saves_into_drive_folder(server, tmp_path):
+    folder = use_drive(server, tmp_path)
+    assert call(server, "POST", "/api/upload", body=b"Name\n", headers={"X-Filename": "new.csv"})[0] == 200
+    assert (folder / "new.csv").exists() and not (server.cfg.nf_home / "inbox" / "new.csv").exists()
+
+
+def test_run_passes_drive_file(server, tmp_path):
+    folder = use_drive(server, tmp_path)
+    _, body, _ = call(server, "POST", "/api/run", body={"file": "drive-roster.xlsx"})
+    sse(server, json.loads(body)["run_id"])
+    argv = json.loads((server.cfg.nf_home / ".fake-argv.json").read_text(encoding="utf-8"))
+    assert str(folder / "drive-roster.xlsx") in argv[1]

@@ -28,6 +28,16 @@ def _snapshots(nf_home: Path) -> list[dict]:
     return sorted(snaps, key=lambda s: s["week_of"], reverse=True)
 
 
+def roster_dir(nf_home: Path) -> Path:
+    """Where rosters live: the Google Drive folder from settings.json, else the local inbox.
+    Same rule as nf_core.workspace.Workspace.inbox, repeated here because the page server is stdlib-only."""
+    try:
+        folder = json.loads((Path(nf_home) / "settings.json").read_text(encoding="utf-8")).get("roster_folder")
+    except (OSError, ValueError, AttributeError):
+        folder = None
+    return Path(folder) if isinstance(folder, str) and folder else Path(nf_home) / "inbox"
+
+
 def load_progress(nf_home: Path) -> dict:
     try:
         data = json.loads((Path(nf_home) / PROGRESS_FILE).read_text(encoding="utf-8"))

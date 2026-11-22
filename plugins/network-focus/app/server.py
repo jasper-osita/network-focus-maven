@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from dashboard_data import dashboard_payload, set_done
+from dashboard_data import dashboard_payload, roster_dir, set_done
 from progress import failure_message, progress_from_event
 
 HERE = Path(__file__).resolve().parent
@@ -95,7 +95,7 @@ class Run:
 
     def _go(self) -> None:
         cfg, started = self.cfg, time.time()
-        prompt = "/network-focus:brief" + (f" {cfg.nf_home / 'inbox' / self.file}" if self.file else "")
+        prompt = "/network-focus:brief" + (f" {roster_dir(cfg.nf_home) / self.file}" if self.file else "")
         result_text, stderr, last, timed_out, final = "", "", None, threading.Event(), {}
         log_path = cfg.log_dir / "last-run.log"
         try:
@@ -218,7 +218,7 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
             if not self._token_ok():
                 return self._send(401, b"unauthorized", "text/plain")
             if url.path == "/api/status":
-                inbox = sorted((f for f in (cfg.nf_home / "inbox").glob("*") if f.suffix.lower() in UPLOAD_SUFFIXES
+                inbox = sorted((f for f in roster_dir(cfg.nf_home).glob("*") if f.suffix.lower() in UPLOAD_SUFFIXES
                                 and not f.name.startswith(("~$", "."))), key=lambda f: -f.stat().st_mtime)
                 briefs = sorted((cfg.nf_home / "briefs").glob("*.pdf"), key=lambda f: -f.stat().st_mtime)
                 run = state["run"]
@@ -300,8 +300,13 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                     return self._json(413, {"message": "That file is over 10 MB. Is it the right spreadsheet?"})
                 if not name or name.startswith(".") or Path(name).suffix.lower() not in UPLOAD_SUFFIXES:
                     return self._json(400, {"message": "Only .xlsx or .csv spreadsheets can be added."})
-                (cfg.nf_home / "inbox").mkdir(parents=True, exist_ok=True)
-                dest = cfg.nf_home / "inbox" / name
+                folder = roster_dir(cfg.nf_home)
+                if folder == cfg.nf_home / "inbox":
+                    folder.mkdir(parents=True, exist_ok=True)
+                elif not folder.is_dir():
+                    return self._json(409, {"message": "The Network Focus folder in Google Drive isn't there. Open "
+                                                       "Google Drive for desktop and check you're signed in."})
+                dest = folder / name
                 dest.write_bytes(self.rfile.read(length))
                 try:  # keep the spreadsheet's own date, so the stale-data warning still works
                     mtime = int(self.headers.get("X-Last-Modified", "")) / 1000
@@ -324,7 +329,7 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                 return
             if url.path == "/api/run":
                 file = Path(body.get("file") or "").name or None
-                if file and not (cfg.nf_home / "inbox" / file).is_file():
+                if file and not (roster_dir(cfg.nf_home) / file).is_file():
                     return self._json(400, {"message": f"{file} isn't in the inbox any more."})
                 with state_lock:
                     if state["run"] and not state["run"].done:

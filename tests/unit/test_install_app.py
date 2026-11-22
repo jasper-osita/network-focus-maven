@@ -117,3 +117,63 @@ def test_vbs_quotes_paths(tmp_path):
     text = raw.decode("utf-16")
     server = home / "AppData" / "Local" / "Network Focus" / "server.py"
     assert f'""{server}""' in text and ", 0, False" in text
+
+
+# ---- Google Drive folder ----
+import os  # noqa: E402
+
+from nf_core.workspace import load_settings  # noqa: E402
+
+
+def _mac_drive(home):
+    d = home / "Library" / "CloudStorage" / "GoogleDrive-x@y.com" / "My Drive"
+    d.mkdir(parents=True)
+    return d
+
+
+def test_install_creates_drive_folder(home):
+    drive = _mac_drive(home)
+    r = install_app.install(PLUGIN, home, launch=False, system="darwin")
+    folder = drive / "Network Focus"
+    assert r["roster_folder"] == str(folder) and folder.is_dir()
+    assert load_settings(home / "Documents" / "Network Focus")["roster_folder"] == str(folder)
+    assert not any("Google Drive" in w for w in r["warnings"])
+
+
+def test_install_copies_local_roster_once(home, sample_xlsx):
+    drive = _mac_drive(home)
+    inbox = home / "Documents" / "Network Focus" / "inbox"
+    inbox.mkdir(parents=True)
+    local = inbox / "roster.xlsx"
+    local.write_bytes(sample_xlsx.read_bytes())
+    os.utime(local, (1_700_000_000, 1_700_000_000))
+    install_app.install(PLUGIN, home, launch=False, system="darwin")
+    copied = drive / "Network Focus" / "roster.xlsx"
+    assert copied.read_bytes() == local.read_bytes() and int(copied.stat().st_mtime) == 1_700_000_000
+    copied.unlink()
+    (drive / "Network Focus" / "newer.csv").write_text("Name\n", encoding="utf-8")
+    install_app.install(PLUGIN, home, launch=False, system="darwin")
+    assert not copied.exists()
+
+
+def test_install_without_drive_warns(home):
+    r = install_app.install(PLUGIN, home, launch=False, system="darwin")
+    assert r["roster_folder"] is None
+    assert any("Google Drive isn't set up on this computer" in w for w in r["warnings"])
+    assert (home / "Documents" / "Network Focus" / "inbox").is_dir()
+
+
+def test_install_more_than_one_drive_warns(home):
+    _mac_drive(home)
+    (home / "Library" / "CloudStorage" / "GoogleDrive-z@y.com" / "My Drive").mkdir(parents=True)
+    r = install_app.install(PLUGIN, home, launch=False, system="darwin")
+    assert r["roster_folder"].endswith("GoogleDrive-x@y.com/My Drive/Network Focus".replace("/", os.sep))
+    assert any("more than one account" in w for w in r["warnings"])
+
+
+def test_install_windows_drive_root(home, tmp_path):
+    g = tmp_path / "G"
+    (g / "My Drive").mkdir(parents=True)
+    r = install_app.install(PLUGIN, home, launch=False, system="win32", drive_roots=[g])
+    assert r["roster_folder"] == str(g / "My Drive" / "Network Focus")
+    assert (g / "My Drive" / "Network Focus").is_dir()

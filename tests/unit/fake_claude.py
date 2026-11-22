@@ -8,6 +8,7 @@ from pathlib import Path
 
 mode = os.environ.get("FAKE_CLAUDE_MODE", "ok")
 home = Path(os.environ["NF_HOME"])
+(home / ".fake-argv.json").write_text(json.dumps(sys.argv[1:]), encoding="utf-8")
 
 
 def emit(obj):

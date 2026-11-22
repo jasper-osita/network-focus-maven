@@ -30,7 +30,8 @@ def status(results):
 def test_healthy_workspace(home):
     r = setup_checks(home, port=FREE_PORT)
     s = status(r)
-    assert all(v == "ok" for k, v in s.items() if k not in ("Claude command-line tool", "Network Focus page"))
+    assert all(v == "ok" for k, v in s.items() if k not in ("Claude command-line tool", "Network Focus page", "Google Drive folder"))
+    assert s["Google Drive folder"] == "info"  # no Drive set up: rosters come from the local inbox
     assert s["Network Focus page"] == "info"
     assert "3 goals" in next(x.detail for x in r if x.name == "goals.md")
     assert "saved today" in next(x.detail for x in r if x.name == "Spreadsheet in inbox")
@@ -73,3 +74,39 @@ def test_cli_output_and_json(home):
     j = subprocess.run([sys.executable, str(CLI), "--json", "--port", str(FREE_PORT)], capture_output=True, text=True, encoding="utf-8", env=env)
     data = json.loads(j.stdout)
     assert {"name", "status", "detail", "fix"} <= set(data[0])
+
+
+# ---- Google Drive folder ----
+from nf_core.workspace import save_settings  # noqa: E402
+
+
+def _line(results, name):
+    return next(r for r in results if r.name == name)
+
+
+def test_check_drive_ok(home, tmp_path, sample_xlsx):
+    folder = tmp_path / "Drive" / "Network Focus"
+    folder.mkdir(parents=True)
+    shutil.copy(sample_xlsx, folder)
+    save_settings(home, {"roster_folder": str(folder)})
+    r = _line(setup_checks(home, FREE_PORT), "Google Drive folder")
+    assert r.status == "ok" and str(folder) in r.detail
+
+
+def test_check_drive_not_set_up(home):
+    assert _line(setup_checks(home, FREE_PORT), "Google Drive folder").status == "info"
+
+
+def test_check_drive_missing(home, tmp_path):
+    save_settings(home, {"roster_folder": str(tmp_path / "gone")})
+    r = _line(setup_checks(home, FREE_PORT), "Google Drive folder")
+    assert r.status == "fail" and r.fix == "Open Google Drive for desktop and check you're signed in."
+
+
+def test_check_spreadsheet_google_sheet(home, tmp_path):
+    folder = tmp_path / "Drive" / "Network Focus"
+    folder.mkdir(parents=True)
+    (folder / "Roster.gsheet").write_text("{}", encoding="utf-8")
+    save_settings(home, {"roster_folder": str(folder)})
+    r = _line(setup_checks(home, FREE_PORT), "Spreadsheet in inbox")
+    assert r.status == "fail" and "Microsoft Excel" in r.fix

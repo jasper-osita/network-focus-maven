@@ -141,6 +141,7 @@ if ($LASTEXITCODE -ne 0) { Fail "Couldn't set up the page." 'Run the installer a
 $result = ($output.Trim() -split "`n")[-1] | ConvertFrom-Json
 foreach ($w in $result.warnings) { Write-Host "  ! $w" -ForegroundColor Yellow }
 Ok 'Folder: Documents > Network Focus'
+if ($result.roster_folder) { Ok 'Roster folder: Google Drive > My Drive > Network Focus' }
 Ok 'Desktop shortcut: Network Focus'
 
 # ---------------------------------------------------------------- 5. open

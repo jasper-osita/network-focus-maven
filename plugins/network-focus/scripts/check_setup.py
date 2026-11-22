@@ -56,6 +56,16 @@ def setup_checks(home: Path, port: int = 8765) -> list[CheckResult]:
                             "Type 'make this week's network brief' once and it will create the folder for you.")] \
             + _tools(port)
     res = [CheckResult("Network Focus folder", "ok", f"Found at {ws.root}.")]
+    folder = ws.roster_folder
+    if folder is None:
+        res.append(CheckResult("Google Drive folder", "info",
+                               "Not set up, so rosters come from the inbox folder. To use Google Drive, install Google "
+                               "Drive for desktop, sign in, then run the installer again."))
+    elif folder.is_dir():
+        res.append(CheckResult("Google Drive folder", "ok", f"Reading the roster from {folder}."))
+    else:
+        res.append(CheckResult("Google Drive folder", "fail", f"I can't find {folder}.",
+                               "Open Google Drive for desktop and check you're signed in."))
     had_goals = ws.goals_path.exists()
     if TEMPLATE.exists():
         ensure_workspace(ws, TEMPLATE)  # a folder made in Finder gets its inbox, briefs and starter goals
@@ -86,7 +96,13 @@ def setup_checks(home: Path, port: int = 8765) -> list[CheckResult]:
             res.append(CheckResult("Spreadsheet columns", "fail", e.issue.message,
                                    "Fix the spreadsheet as described, save it, and put it back in the inbox."))
     except BlockingError as e:
-        if e.issue.code == "NO_SPREADSHEET":
+        if e.issue.code == "DRIVE_FOLDER_MISSING":
+            pass  # the Google Drive line above already says what to do
+        elif e.issue.code == "GOOGLE_SHEET":
+            res.append(CheckResult("Spreadsheet in inbox", "fail", e.issue.message,
+                                   "In Drive, open it and choose File → Download → Microsoft Excel, then put that "
+                                   "file in the folder."))
+        elif e.issue.code == "NO_SPREADSHEET":
             res.append(CheckResult("Spreadsheet in inbox", "info",
                                    f"No spreadsheet yet, which is normal before the first brief. Drag this week's file "
                                    f"onto the Network Focus page, or into {ws.inbox}."))

@@ -116,6 +116,9 @@ import json, sys
 for w in json.load(sys.stdin).get("warnings", []):
     print("  ! " + w)'
 ok "Folder: Documents › Network Focus"
+if printf '%s' "$RESULT" | tail -n 1 | py 'import json, sys; sys.exit(0 if json.load(sys.stdin).get("roster_folder") else 1)'; then
+  ok "Roster folder: Google Drive › My Drive › Network Focus"
+fi
 ok "Desktop link: Network Focus"
 
 # ---------------------------------------------------------------- 5. open
