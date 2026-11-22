@@ -62,7 +62,7 @@ Write `WORK/brief.json` so it follows `${CLAUDE_PLUGIN_ROOT}/schemas/brief.json`
   - `evidence`: 1–2 quotes, at least 3 words each, copied word for word from that contact's `text`.
   - `confidence`: "low" if `flags.thin` is true.
 - `message` (on every focus and dormant person): 3–5 sentences the CEO can paste and send, in her voice, with the specific ask and no sign-off name. If the move is a call, the message asks for the call. Greet the person by first name. Use only facts from that person's row, don't write placeholders like [Name], and never say something is attached. She pastes the text, so if a file is needed, say she'll send it.
-- `dormant`: 2–3 people with `flags.dormant` true who aren't in focus and don't have `flags.thin`. Copy `days_since_contact` from the row.
+- `dormant`: 2–3 people with `flags.dormant` true who aren't in focus and don't have `flags.thin`. Copy `days_since_contact` from the row. Give each one `goals`: the goal ids they serve.
 - `coming_up`: people to prepare for but not push yet (timing "later"). At most 2.
 - `goal_gaps`: any goal with no credible pick, and what's missing.
 - `extra_checks`: up to 3 data problems from the scouts' `concerns` that aren't already in warnings.json. Never repeat warnings.json, because the PDF adds those automatically.

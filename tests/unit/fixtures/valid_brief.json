@@ -93,7 +93,10 @@
       "evidence": [
         "Strong fit for Series C but communication has gone cold"
       ],
-      "message": "Hi Priya, it has been a while since we met around our seed round. TerraGrid has grown a lot since then and we're preparing our Series C. I'd love to catch up over coffee and hear whether it could be a fit for Index."
+      "message": "Hi Priya, it has been a while since we met around our seed round. TerraGrid has grown a lot since then and we're preparing our Series C. I'd love to catch up over coffee and hear whether it could be a fit for Index.",
+      "goals": [
+        1
+      ]
     },
     {
       "row_id": 19,
@@ -104,7 +107,10 @@
       "evidence": [
         "He owes her one after she introduced him to a board candidate"
       ],
-      "message": "Hi Brian, I hope the board search went well after the intro. We're now looking for a CTO who has scaled an engineering team past 200 people. Would you be willing to introduce me to one or two people you think would be strong?"
+      "message": "Hi Brian, I hope the board search went well after the intro. We're now looking for a CTO who has scaled an engineering team past 200 people. Would you be willing to introduce me to one or two people you think would be strong?",
+      "goals": [
+        1
+      ]
     }
   ],
   "coming_up": [

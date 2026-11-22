@@ -8,10 +8,12 @@
   :root {
     --bg: #f7f4ee; --card: #ffffff; --ink: #2b2b2b; --muted: #6b6b6b; --navy: #1f2a44; --gold: #b08d57;
     --line: #e6dfd2; --soft: #f0ebe2; --beige: #f3ebdd; --chip: #6b5330; --ok: #2f6b45; --bad: #a33a2b; --on-navy: #ffffff;
+    --warn: #9a5b00; --new-bg: #e3ecf7; --new-ink: #1f3d6b;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #15181f; --card: #1d212b; --ink: #e8e4dc; --muted: #a29d93; --navy: #c9d3ea; --gold: #d2b07a;
-            --line: #2e3442; --soft: #262b37; --beige: #2a2620; --chip: #e2c79a; --ok: #7cc49a; --bad: #ef8f80; --on-navy: #15181f; }
+            --line: #2e3442; --soft: #262b37; --beige: #2a2620; --chip: #e2c79a; --ok: #7cc49a; --bad: #ef8f80; --on-navy: #15181f;
+            --warn: #e6b25c; --new-bg: #22304a; --new-ink: #c9d8f2; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink);
@@ -29,6 +31,13 @@
   #ring { width: 40px; height: 40px; transform: rotate(-90deg); }
   #ring .track { stroke: var(--soft); } #ring .fill { stroke: var(--ok); transition: stroke-dasharray .3s; }
   .score b { color: var(--ok); } .score span { color: var(--muted); font-size: 14px; }
+  .goals { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; }
+  .goal { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .goal svg { width: 22px; height: 22px; transform: rotate(-90deg); flex: none; }
+  .goal .track { stroke: var(--soft); } .goal .fill { stroke: var(--ok); }
+  .goal b { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .goal.none { color: var(--warn); font-weight: 600; }
+  .chip.new { background: var(--new-bg); color: var(--new-ink); }
   nav { display: flex; gap: 6px; align-items: center; margin: 20px 0 22px; border-bottom: 1px solid var(--line); }
   .tab { background: none; border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: 8px 4px 10px;
          margin-right: 18px; color: var(--muted); font-weight: 600; }
@@ -106,6 +115,7 @@
       <div><b id="scoreText">0 of 0 done</b><br><span id="lastWeek"></span></div>
     </div>
   </div>
+  <div class="goals" id="goalRings" hidden></div>
   <nav>
     <button class="tab" id="tabWeek" aria-selected="true">This week</button>
     <button class="tab" id="tabMake" aria-selected="false">Make the brief</button>
@@ -129,6 +139,7 @@
       <div class="card">
         <h3>Also this week</h3><div id="others"></div>
         <h3 style="margin-top:18px" id="dormantTitle">Worth a note · gone quiet</h3><div id="dormant"></div>
+        <h3 style="margin-top:18px" id="considerTitle" hidden>Worth considering · since Monday</h3><div id="considering"></div>
       </div>
       <div class="card side">
         <h3 id="qTitle">Questions for you</h3><div id="questions"></div>
@@ -209,17 +220,28 @@ function renderProgress() {
   $("lastWeek").textContent = p.last_week ? `Last week ${p.last_week.done}/${p.last_week.total}` : "This week's moves";
 }
 
+function goalRing(g) {
+  if (!g.total) return `<span class="goal none">${esc(g.title)} · No move this week</span>`;
+  const pct = Math.round(100 * g.done / g.total);
+  return `<span class="goal"><svg viewBox="0 0 36 36" aria-hidden="true">
+    <circle class="track" cx="18" cy="18" r="15.915" fill="none" stroke-width="5"/>
+    <circle class="fill" cx="18" cy="18" r="15.915" fill="none" stroke-width="5" stroke-linecap="round"
+      stroke-dasharray="${pct} 100" style="opacity:${pct ? 1 : 0}"/></svg>${esc(g.title)} <b>${g.done}/${g.total}</b></span>`;
+}
+
 function itemRow(p) {
   const sub = p.days !== undefined ? `${esc(p.role_company)} · ${esc(p.days)} days quiet` : esc(p.role_company);
+  const main = (dash.goals || [])[0];
+  const isNew = p.new && main ? ` <span class="chip new">New · ${esc(main.title)}</span>` : "";
   return `<div class="item ${p.done ? "done" : ""}">
     <input type="checkbox" data-row="${p.row_id}" ${p.done ? "checked" : ""} aria-label="Done: ${esc(p.name)}">
-    <div class="txt"><b>${esc(p.name)}</b> · ${sub}<small>${esc(p.move)}</small>
+    <div class="txt"><b>${esc(p.name)}</b> · ${sub}${isNew}<small>${esc(p.move)}</small>
       ${p.message ? `<details class="peek"><summary>Preview message</summary><p>${esc(p.message)}</p></details>` : ""}</div>
     ${p.message ? `<button class="copy" data-copy="${p.row_id}">Copy</button>` : ""}</div>`;
 }
 
 function renderDashboard() {
-  if (!dash || dash.empty) { $("score").hidden = true; $("pdfLink").hidden = true; $("emptyNote").hidden = false; show("make"); return; }
+  if (!dash || dash.empty) { $("goalRings").hidden = true; $("score").hidden = true; $("pdfLink").hidden = true; $("emptyNote").hidden = false; show("make"); return; }
   $("emptyNote").hidden = true;
   $("weekLabel").textContent = `Week of ${fmtWeek(dash.week_of)}`;
   $("pdfLink").hidden = false; $("pdfLink").href = dash.pdf_url;
@@ -244,6 +266,11 @@ function renderDashboard() {
   $("others").innerHTML = dash.others.map(itemRow).join("") || `<p class="muted">Just the one this week.</p>`;
   $("dormant").innerHTML = dash.dormant.map(itemRow).join("");
   $("dormantTitle").hidden = !dash.dormant.length;
+  const cons = dash.considering || [];
+  $("considering").innerHTML = cons.map((c) => `<div class="q"><b>${esc(c.name)}</b>: ${esc(c.note)}</div>`).join("");
+  $("considerTitle").hidden = !cons.length;
+  $("goalRings").innerHTML = (dash.goals || []).map(goalRing).join("");
+  $("goalRings").hidden = !(dash.goals || []).length;
   const qs = dash.questions;
   $("qTitle").textContent = qs.length ? `${qs.length} question${qs.length === 1 ? "" : "s"} for you` : "No questions this week";
   $("questions").innerHTML = qs.slice(0, 2).map((q) => `<div class="q">${esc(q)}</div>`).join("") +

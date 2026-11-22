@@ -143,6 +143,9 @@ def validate_brief(brief: dict, roster: dict) -> list[Problem]:
         row = _check_person(item, where, rows, problems)
         if row is None:
             continue
+        for gid in item["goals"]:
+            if gid not in goal_ids:
+                problems.append(Problem("UNKNOWN_GOAL", where, f"{where}: there is no goal {gid} in goals.md."))
         if row["flags"]["thin"]:
             problems.append(Problem("THIN_IN_DORMANT", where,
                                     f"{where}: very little is known about {row['name']}, so they can't be a dormant pick. "

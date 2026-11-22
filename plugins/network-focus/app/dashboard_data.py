@@ -90,16 +90,29 @@ def _person(item: dict, snapshot: dict, marks: dict) -> dict:
     out = {
         "row_id": item["row_id"],
         "name": item.get("name") or row.get("name", ""),
-        "role_company": ", ".join(x for x in (row.get("role"), row.get("company")) if x),
+        "role_company": ", ".join(x for x in (row.get("role"), row.get("company")) if x) or item.get("who", ""),
         "goals": [goals[str(g)] for g in item.get("goals", []) if str(g) in goals],
         "move": item.get("move", ""),
         "why": item.get("why", ""),
         "message": item.get("message", ""),
         "done": _marked(marks, item["row_id"], item.get("name") or row.get("name", "")),
+        "new": bool(item.get("new")),
     }
     if "days_since_contact" in item:
         out["days"] = item["days_since_contact"]
     return out
+
+
+def _goal_rings(snapshot: dict, marks: dict) -> list[dict]:
+    """This week's moves per goal, and how many are done. A move serving two goals counts for both."""
+    b = snapshot["brief"]
+    picks = b.get("focus", []) + b.get("dormant", [])
+    rings = []
+    for gid, title in sorted(snapshot.get("goals", {}).items(), key=lambda kv: int(kv[0])):
+        mine = [x for x in picks if int(gid) in (x.get("goals") or [])]
+        rings.append({"id": int(gid), "title": title, "total": len(mine),
+                      "done": sum(1 for x in mine if _marked(marks, x["row_id"], x.get("name", "")))})
+    return [{"id": r["id"], "title": r["title"], "done": r["done"], "total": r["total"]} for r in rings]
 
 
 def dashboard_payload(nf_home: Path, today: date) -> dict:
@@ -123,4 +136,7 @@ def dashboard_payload(nf_home: Path, today: date) -> dict:
         "going_quiet": snap.get("going_quiet", []),
         "banner": snap.get("banner", []),
         "progress": {**_score(snap, progress), "last_week": _score(earlier[0], progress) if earlier else None},
+        "goals": _goal_rings(snap, marks),
+        "considering": snap["brief"].get("considering", []),
+        "updated_at": (snap["brief"].get("updates") or [{}])[-1].get("at"),
     }

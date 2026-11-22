@@ -86,7 +86,7 @@ def test_short_quote_rejected(brief, roster):
 def test_dormant_rules(brief, roster):
     b = copy.deepcopy(brief)
     lin = contact(roster, "Lin Wang")
-    b["dormant"][1] = {"row_id": lin["row_id"], "name": "Lin Wang", "days_since_contact": 59,
+    b["dormant"][1] = {"row_id": lin["row_id"], "name": "Lin Wang", "goals": [1], "days_since_contact": 59,
                        "why": "Casual Anthropic researcher she checks in with quarterly.",
                        "move": "Send Lin a short note asking for an intro to two Anthropic researchers.",
                        "evidence": ["Quarterly check-in note"], "message": msg("Lin")}
@@ -98,7 +98,7 @@ def test_dormant_rules(brief, roster):
 
 def test_duplicate_person(brief, roster):
     b = copy.deepcopy(brief)
-    b["dormant"][0] = {"row_id": 6, "name": "Reid Hoffman", "days_since_contact": 81,
+    b["dormant"][0] = {"row_id": 6, "name": "Reid Hoffman", "goals": [1], "days_since_contact": 81,
                        "why": "Strongest investor relationship.", "move": "Email Reid a personal note asking for a call.",
                        "evidence": ["Strongest investor relationship she has"], "message": msg("Reid")}
     assert "DUPLICATE_PERSON" in codes(validate_brief(b, roster))
@@ -175,7 +175,7 @@ def test_cli_exit_codes(tmp_path, brief, roster):
 
 def test_thin_contact_rejected_in_dormant(brief, roster):
     b = copy.deepcopy(brief)
-    b["dormant"][1] = {"row_id": 11, "name": "Jensen Huang", "days_since_contact": 199,
+    b["dormant"][1] = {"row_id": 11, "name": "Jensen Huang", "goals": [1], "days_since_contact": 199,
                        "why": "NVIDIA CEO met briefly at GTC.", "move": "Email Jensen a short note asking for a call about AI.",
                        "evidence": ["Met briefly at GTC"], "message": msg("Jensen")}
     assert "THIN_IN_DORMANT" in codes(validate_brief(b, roster))
@@ -219,3 +219,13 @@ def test_message_must_not_claim_attachments(brief, roster):
     b = copy.deepcopy(brief)
     b["focus"][1]["message"] += " I've attached the full deck here."
     assert codes(validate_brief(b, roster)) == ["MESSAGE_ATTACHMENT"]
+
+
+def test_dormant_needs_goals(brief_dict, roster_dict):
+    import copy
+    no_goals = copy.deepcopy(brief_dict)
+    del no_goals["dormant"][0]["goals"]
+    assert any(p.code == "SCHEMA" and "goals" in p.message for p in validate_brief(no_goals, roster_dict))
+    bad_goal = copy.deepcopy(brief_dict)
+    bad_goal["dormant"][0]["goals"] = [9]
+    assert any(p.code == "UNKNOWN_GOAL" and p.where == "dormant[0]" for p in validate_brief(bad_goal, roster_dict))

@@ -88,6 +88,18 @@
             "type": "string",
             "minLength": 1,
             "description": "3-5 sentences the CEO can paste and send: her voice, the specific ask, no sign-off name, 20-120 words, includes the person's first name, no placeholders ([ { < TODO), only facts from this person's row; any 'N days' must match the row; never claim an attachment"
+          },
+          "new": {
+            "type": "boolean",
+            "description": "Set by code on Update: placed mid-week as a main-goal newcomer"
+          },
+          "missing": {
+            "type": "boolean",
+            "description": "Set by code on Update: no longer in the roster"
+          },
+          "who": {
+            "type": "string",
+            "description": "Set by code on Update: role and company from before they left the roster"
           }
         }
       }
@@ -101,6 +113,7 @@
         "required": [
           "row_id",
           "name",
+          "goals",
           "days_since_contact",
           "why",
           "move",
@@ -114,6 +127,14 @@
           "name": {
             "type": "string",
             "minLength": 1
+          },
+          "goals": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "integer"
+            },
+            "description": "Goal ids this person serves"
           },
           "days_since_contact": {
             "type": "integer",
@@ -197,6 +218,68 @@
         "minLength": 1
       },
       "description": "Data problems the model noticed that code did not (e.g. a row that contradicts itself)"
+    },
+    "considering": {
+      "type": "array",
+      "description": "Set by code on Update: people to consider next week, and why",
+      "items": {
+        "type": "object",
+        "required": [
+          "row_id",
+          "name",
+          "note"
+        ],
+        "properties": {
+          "row_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "updates": {
+      "type": "array",
+      "description": "Set by code on Update: when the brief changed mid-week",
+      "items": {
+        "type": "object",
+        "required": [
+          "at",
+          "added",
+          "bumped"
+        ],
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "added": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bumped": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "update_questions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Set by code on Update: questions for the CEO, e.g. a pick who left the roster"
     }
   }
 }

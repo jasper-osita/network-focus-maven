@@ -265,3 +265,8 @@ def test_run_passes_drive_file(server, tmp_path):
     sse(server, json.loads(body)["run_id"])
     argv = json.loads((server.cfg.nf_home / ".fake-argv.json").read_text(encoding="utf-8"))
     assert str(folder / "drive-roster.xlsx") in argv[1]
+
+
+def test_index_has_goal_rings(server):
+    page = call(server, "GET", f"/?t={TOKEN}", cookie=False)[1].decode()
+    assert 'id="goalRings"' in page and 'id="considering"' in page

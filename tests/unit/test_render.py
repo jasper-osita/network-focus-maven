@@ -120,4 +120,4 @@ def test_render_pdf_writes_snapshot(tmp_path, brief_dict, roster_dict, warnings_
     home = setup_work(tmp_path, brief_dict, roster_dict, warnings_dict)
     code, out = run_cli(home, "--today", "2026-11-23")
     snap = json.loads((home / "briefs" / "2026-11-23-network-focus.json").read_text())
-    assert code == 0 and snap["brief"]["focus"][0]["name"] == "Diana Chen" and snap["version"] == 1
+    assert code == 0 and snap["brief"]["focus"][0]["name"] == "Diana Chen" and snap["version"] == 2 and snap["roster_index"]

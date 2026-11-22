@@ -92,3 +92,40 @@ def test_marks_follow_the_person_not_the_row(home_with_snapshot, snapshot):
     p = dashboard_payload(home_with_snapshot, date(2026, 11, 23))
     done = {x["name"]: x["done"] for x in [p["top"], *p["others"]]}
     assert done["Diana Chen"] is False and done["Marcus Wei"] is False and p["progress"]["done"] == 0
+
+
+def test_goal_rings(home_with_snapshot):
+    set_done(home_with_snapshot, "2026-11-23", 3, True, "Diana Chen")
+    set_done(home_with_snapshot, "2026-11-23", 5, True, "Sarah Guo")
+    goals = dashboard_payload(home_with_snapshot, date(2026, 11, 23))["goals"]
+    assert goals == [{"id": 1, "title": "Raise Series C", "done": 1, "total": 5},
+                     {"id": 2, "title": "Hire a CTO", "done": 1, "total": 1},
+                     {"id": 3, "title": "Build relationships in AI safety", "done": 1, "total": 2}]
+
+
+def test_goal_with_no_move_has_zero_total(tmp_path, snapshot):
+    snapshot["brief"]["focus"] = [f for f in snapshot["brief"]["focus"] if 2 not in f["goals"]]
+    write_snapshot(tmp_path, snapshot)
+    goals = dashboard_payload(tmp_path, date(2026, 11, 23))["goals"]
+    assert goals[1] == {"id": 2, "title": "Hire a CTO", "done": 0, "total": 0}
+
+
+def test_old_snapshot_dormant_without_goals_still_loads(tmp_path, snapshot):
+    for d in snapshot["brief"]["dormant"]:
+        del d["goals"]
+    snapshot["version"] = 1
+    write_snapshot(tmp_path, snapshot)
+    p = dashboard_payload(tmp_path, date(2026, 11, 23))
+    assert p["goals"][0]["total"] == 3 and p["progress"]["total"] == 7
+
+
+def test_person_role_falls_back_to_who(tmp_path, snapshot):
+    item = snapshot["brief"]["focus"][1]
+    item.update({"row_id": 99, "missing": True, "who": "Partner, Sequoia Capital", "new": True})
+    snapshot["brief"]["considering"] = [{"row_id": 7, "name": "Tom Park", "note": "Strong CTO fit."}]
+    snapshot["brief"]["updates"] = [{"at": "2026-11-25T10:50", "added": [], "bumped": []}]
+    write_snapshot(tmp_path, snapshot)
+    p = dashboard_payload(tmp_path, date(2026, 11, 23))
+    assert p["others"][0]["role_company"] == "Partner, Sequoia Capital" and p["others"][0]["new"] is True
+    assert p["top"]["new"] is False and p["considering"][0]["name"] == "Tom Park"
+    assert p["updated_at"] == "2026-11-25T10:50"

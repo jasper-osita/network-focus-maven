@@ -1,8 +1,10 @@
 """A self-contained JSON copy of each brief, saved next to the PDF, for the CEO dashboard.
 The dashboard reads this instead of .work/, which every run clears."""
 
+from .changes import roster_index
+
 BANNER_CODES = ("STALE_FILE", "REUSED_FILE")
-SNAPSHOT_VERSION = 1
+SNAPSHOT_VERSION = 2  # 2 adds roster_index, so the page can tell who is new
 
 
 def questions_for(brief: dict, roster: dict, warnings: dict) -> list[str]:
@@ -13,6 +15,7 @@ def questions_for(brief: dict, roster: dict, warnings: dict) -> list[str]:
     items += [f"No pick for Goal {g['goal_id']} ({goals.get(g['goal_id'], '?')}): {g['note']}"
               for g in brief.get("goal_gaps", [])]
     items += list(brief.get("extra_checks", []))
+    items += list(brief.get("update_questions", []))
     return items
 
 
@@ -26,7 +29,9 @@ def build_snapshot(brief: dict, roster: dict, warnings: dict) -> dict:
     return {
         "version": SNAPSHOT_VERSION,
         "week_of": brief["week_of"],
-        "source": {"file_name": roster["source"]["file_name"], "as_of": roster["source"]["as_of"]},
+        "source": {"file_name": roster["source"]["file_name"], "as_of": roster["source"]["as_of"],
+                   "sha256": roster["source"].get("sha256", "")},
+        "roster_index": roster_index(roster["contacts"]),
         "goals": {str(g["id"]): g["title"] for g in roster["goals"]},
         "people": people,
         "brief": brief,
