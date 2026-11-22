@@ -114,3 +114,10 @@ def test_non_latin_names_survive_in_pdf(tmp_path, brief_dict, roster_dict, warni
 def test_markdown_includes_messages(brief_dict, roster_dict, warnings_dict):
     md = render_markdown(brief_dict, roster_dict, warnings_dict)
     assert brief_dict["focus"][0]["message"] in md and brief_dict["dormant"][0]["message"] in md
+
+
+def test_render_pdf_writes_snapshot(tmp_path, brief_dict, roster_dict, warnings_dict):
+    home = setup_work(tmp_path, brief_dict, roster_dict, warnings_dict)
+    code, out = run_cli(home, "--today", "2026-11-23")
+    snap = json.loads((home / "briefs" / "2026-11-23-network-focus.json").read_text())
+    assert code == 0 and snap["brief"]["focus"][0]["name"] == "Diana Chen" and snap["version"] == 1

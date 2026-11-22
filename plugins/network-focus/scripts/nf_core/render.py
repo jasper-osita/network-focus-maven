@@ -6,8 +6,9 @@ from datetime import date
 from pathlib import Path
 from xml.sax.saxutils import escape
 
+from .snapshot import BANNER_CODES, questions_for
+
 FONT_SIZES = (10, 9.5, 9, 8.5, 8)
-BANNER_CODES = ("STALE_FILE", "REUSED_FILE")
 _ASCII = {"→": "->", "←": "<-", "≥": ">=", "≤": "<=", "✓": "v", "✅": "v", "❌": "x", "⚠": "!", "•": "-",
           "≈": "~", "×": "x"}
 
@@ -105,10 +106,7 @@ def _ctx(brief: dict, roster: dict, warnings: dict) -> dict:
     goals = {g["id"]: g["title"] for g in roster["goals"]}
     ws = warnings.get("warnings", [])
     banner = [w["message"] for w in ws if w["code"] in BANNER_CODES]
-    checks = [w["message"] for w in ws if w["severity"] == "warn" and w["code"] not in BANNER_CODES]
-    checks += [f"No pick for Goal {g['goal_id']} ({goals.get(g['goal_id'], '?')}): {g['note']}"
-               for g in brief.get("goal_gaps", [])]
-    checks += list(brief.get("extra_checks", []))
+    checks = questions_for(brief, roster, warnings)  # same list the dashboard shows as "questions for you"
 
     def who(item):
         r = rows[item["row_id"]]

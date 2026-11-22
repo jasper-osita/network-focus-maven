@@ -13,6 +13,7 @@ from pathlib import Path
 
 from nf_core.brief_checks import validate_brief
 from nf_core.render import render_markdown, render_pdf
+from nf_core.snapshot import build_snapshot
 from nf_core.workspace import Workspace, record_run
 
 
@@ -42,6 +43,8 @@ def main(argv=None) -> int:
         pdf, md = ws.briefs / f"{stem}.pdf", ws.briefs / f"{stem}.md"
         pdf.write_bytes(tmp_pdf.read_bytes())
     md.write_text(render_markdown(brief, roster, warnings))
+    snap = ws.briefs / f"{stem}.json"  # the CEO dashboard reads this; .work/ is cleared every run
+    snap.write_text(json.dumps(build_snapshot(brief, roster, warnings), indent=2, ensure_ascii=False))
     today = date.fromisoformat(a.today) if a.today else date.today()
     record_run(ws, {"sha256": roster["source"]["sha256"], "file_name": roster["source"]["file_name"],
                     "run_date": today.isoformat(), "brief": pdf.name})
