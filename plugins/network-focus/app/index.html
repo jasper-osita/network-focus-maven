@@ -48,6 +48,9 @@
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; margin-bottom: 16px; }
   .banner { background: var(--beige); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 15px; }
   .banner a { color: var(--navy); font-weight: 600; cursor: pointer; }
+  .roster { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .roster .primary { padding: 8px 14px; font-size: 14px; }
+  .roster .primary:disabled { opacity: .55; cursor: wait; }
   .hero { border-left: 6px solid var(--gold); padding: 28px 32px; }
   .kicker { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
   .hero h2 { margin: 6px 0 2px; font-size: 32px; color: var(--navy); line-height: 1.15; }
@@ -126,6 +129,8 @@
   <section id="viewWeek">
     <div class="banner" id="staleBanner" hidden></div>
     <div class="banner" id="dataBanner" hidden></div>
+    <div class="banner roster" id="rosterLine" hidden><span id="rosterText"></span>
+      <button class="primary" id="updateBtn">Update this week's brief</button></div>
     <div class="card hero">
       <div class="kicker">This week's #1</div>
       <h2><span id="heroName"></span><span class="chip" id="heroGoal"></span></h2>
@@ -278,8 +283,36 @@ function renderDashboard() {
   $("quiet").innerHTML = dash.going_quiet.map((g) => `<div class="q">${esc(g.name)} · ${esc(g.days_since_contact)} days</div>`).join("");
   $("quietTitle").hidden = !dash.going_quiet.length;
   renderProgress();
+  renderRosterLine();
   show("week");
 }
+
+/* ---------- roster changes (the page checks the roster folder every 2 minutes) ---------- */
+let rosterChanges = null;
+function fmtWhen(epoch) {
+  const d = new Date(epoch * 1000), now = new Date();
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return d.toDateString() === now.toDateString() ? `today ${time}`
+    : `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${time}`;
+}
+function renderRosterLine() {
+  const c = rosterChanges;
+  const show = !!(c && dash && !dash.empty && !dash.stale);
+  $("rosterLine").hidden = !show;
+  if (!show) return;
+  const names = (xs) => xs.map((x) => x.name).join(", ");
+  $("rosterText").textContent = [`Roster updated ${fmtWhen(c.modified)}`,
+    c.new.length ? `New: ${names(c.new)}` : "", c.changed.length ? `Changed: ${names(c.changed)}` : ""]
+    .filter(Boolean).join(" · ");
+}
+async function loadRosterChanges() {
+  try {
+    const r = await fetch("/api/roster-changes");
+    if (r.ok) rosterChanges = (await r.json()).changes;
+  } catch (e) { /* the page will try again in 2 minutes */ }
+  renderRosterLine();
+}
+setInterval(loadRosterChanges, 120000);
 
 const everyone = () => [dash.top, ...dash.others, ...dash.dormant];
 document.addEventListener("click", (e) => {
@@ -392,6 +425,7 @@ $("check").addEventListener("click", async () => {
 
 loadDashboard();
 refresh();
+loadRosterChanges();
 </script>
 </body>
 </html>

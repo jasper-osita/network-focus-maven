@@ -38,6 +38,20 @@ def roster_dir(nf_home: Path) -> Path:
     return Path(folder) if isinstance(folder, str) and folder else Path(nf_home) / "inbox"
 
 
+def latest_snapshot_path(nf_home: Path) -> Path | None:
+    """The newest brief's snapshot file, by week (same rule as the dashboard)."""
+    best = None
+    for f in (Path(nf_home) / "briefs").glob(SNAPSHOT_GLOB):
+        try:
+            s = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(s, dict) and isinstance(s.get("brief"), dict) and s.get("week_of"):
+            if best is None or s["week_of"] > best[0]:
+                best = (s["week_of"], f)
+    return best[1] if best else None
+
+
 def load_progress(nf_home: Path) -> dict:
     try:
         data = json.loads((Path(nf_home) / PROGRESS_FILE).read_text(encoding="utf-8"))

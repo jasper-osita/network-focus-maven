@@ -26,6 +26,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from dashboard_data import dashboard_payload, roster_dir, set_done
 from progress import failure_message, progress_from_event
+from roster_watch import RosterWatch
 
 HERE = Path(__file__).resolve().parent
 MAX_UPLOAD = 10 * 1024 * 1024
@@ -46,6 +47,7 @@ class AppConfig:
     scripts_dir: Path = HERE / "scripts"
     run_timeout: int = 900  # seconds; a hung run is stopped so the page never stays locked
     log_dir: Path = HERE / "logs"  # last-run.log: the full record of the latest run, for troubleshooting
+    watch_interval: int = 120  # seconds between roster-folder checks; 0 turns the background check off (tests)
 
     @classmethod
     def load(cls, path: Path) -> "AppConfig":
@@ -53,7 +55,7 @@ class AppConfig:
         return cls(port=d["port"], token=d["token"], nf_home=Path(d["nf_home"]), claude_path=d["claude_path"],
                    claude_args=d.get("claude_args", list(DEFAULT_CLAUDE_ARGS)), uv_path=d.get("uv_path", "uv"),
                    scripts_dir=Path(d.get("scripts_dir", HERE / "scripts")), run_timeout=d.get("run_timeout", 900),
-                   log_dir=Path(d.get("log_dir", HERE / "logs")))
+                   log_dir=Path(d.get("log_dir", HERE / "logs")), watch_interval=d.get("watch_interval", 120))
 
 
 def _start_tree(cmd: list[str], **kw) -> subprocess.Popen:
@@ -161,6 +163,19 @@ class Run:
                 self.done = True
 
 
+def diff_runner(cfg: AppConfig):
+    """Runs roster_diff.py (it needs openpyxl, which this stdlib-only server doesn't have)."""
+    def run(roster: Path, snapshot: Path) -> dict:
+        try:
+            p = subprocess.run([cfg.uv_path, "run", "--quiet", str(cfg.scripts_dir / "roster_diff.py"),
+                                "--roster", str(roster), "--snapshot", str(snapshot)], capture_output=True, text=True,
+                               encoding="utf-8", env={**os.environ, "NF_HOME": str(cfg.nf_home)}, timeout=120)
+            return json.loads(p.stdout.strip().splitlines()[-1])
+        except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+            return {"ok": False, "reason": "error"}
+    return run
+
+
 def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
     state = {"run": None, "runs": {}}
     state_lock = threading.Lock()
@@ -227,6 +242,8 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                               for f in inbox],
                     "briefs": [{"name": f.name, "url": f"/briefs/{f.name}"} for f in briefs],
                     "running": bool(run and not run.done)})
+            if url.path == "/api/roster-changes":
+                return self._json(200, self.server.watch.state())
             if url.path == "/api/dashboard":
                 return self._json(200, dashboard_payload(cfg.nf_home, date.today()))
             if url.path.startswith("/api/run/") and url.path.endswith("/events"):
@@ -354,6 +371,9 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
     srv.daemon_threads = True
     cfg.port = srv.server_address[1]
     srv.cfg = cfg
+    srv.watch = RosterWatch(cfg.nf_home, diff_runner(cfg), interval=cfg.watch_interval or 120)
+    if cfg.watch_interval:
+        srv.watch.start()
     return srv
 
 

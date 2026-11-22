@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 LABEL = "com.networkfocus.app"
-APP_FILES = ("server.py", "index.html", "progress.py", "dashboard_data.py")
+APP_FILES = ("server.py", "index.html", "progress.py", "dashboard_data.py", "roster_watch.py")
 WIN_STARTUP_PARTS = ("AppData", "Roaming", "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from nf_core.drive import FOLDER_NAME, find_my_drive  # noqa: E402  (stdlib-only modules)

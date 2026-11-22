@@ -26,7 +26,7 @@ def server(tmp_path, monkeypatch):
         fake = str(tmp_path / "fake_claude.cmd")
         Path(fake).write_text(f'@"{sys.executable}" "{FAKE}" %*\r\n')
     cfg = AppConfig(port=0, token=TOKEN, nf_home=home, claude_path=fake, claude_args=[], uv_path="uv", log_dir=tmp_path / "logs",
-                    scripts_dir=ROOT / "plugins" / "network-focus" / "scripts")
+                    scripts_dir=ROOT / "plugins" / "network-focus" / "scripts", watch_interval=0)
     srv = make_server(cfg)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     yield srv
@@ -270,3 +270,20 @@ def test_run_passes_drive_file(server, tmp_path):
 def test_index_has_goal_rings(server):
     page = call(server, "GET", f"/?t={TOKEN}", cookie=False)[1].decode()
     assert 'id="goalRings"' in page and 'id="considering"' in page
+
+
+def test_roster_changes_endpoint(server, brief_dict, roster_dict, warnings_dict):
+    assert call(server, "GET", "/api/roster-changes", cookie=False)[0] == 401
+    assert json.loads(call(server, "GET", "/api/roster-changes")[1]) == {"changes": None}
+    put_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    server.watch.run_diff = lambda roster, snap: {"ok": True, "file": roster.name, "changed": [], "removed": [],
+                                                  "new": [{"row_id": 26, "name": "Ana Ruiz", "company": "a16z"}]}
+    import time
+    server.watch.check_once(time.time() + 1000)
+    data = json.loads(call(server, "GET", "/api/roster-changes")[1])
+    assert [p["name"] for p in data["changes"]["new"]] == ["Ana Ruiz"]
+
+
+def test_index_has_roster_line(server):
+    page = call(server, "GET", f"/?t={TOKEN}", cookie=False)[1].decode()
+    assert 'id="rosterLine"' in page and 'id="updateBtn"' in page
