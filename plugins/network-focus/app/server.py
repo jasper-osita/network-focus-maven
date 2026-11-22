@@ -16,12 +16,14 @@ import tempfile
 import threading
 import time
 import uuid
+from datetime import date
 from dataclasses import dataclass, field
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from dashboard_data import dashboard_payload, set_done
 from progress import failure_message, progress_from_event
 
 HERE = Path(__file__).resolve().parent
@@ -183,6 +185,8 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                               for f in inbox],
                     "briefs": [{"name": f.name, "url": f"/briefs/{f.name}"} for f in briefs],
                     "running": bool(run and not run.done)})
+            if url.path == "/api/dashboard":
+                return self._json(200, dashboard_payload(cfg.nf_home, date.today()))
             if url.path.startswith("/api/run/") and url.path.endswith("/events"):
                 return self._events(url.path.split("/")[3])
             if url.path.startswith("/briefs/"):
@@ -193,6 +197,19 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                 ctype = "application/pdf" if f.suffix == ".pdf" else "text/markdown; charset=utf-8"
                 return self._send(200, f.read_bytes(), ctype)
             return self._send(404, b"not found", "text/plain")
+
+        def _done(self, body: dict):
+            row_id, done = body.get("row_id"), body.get("done")
+            if type(row_id) is not int or type(done) is not bool:
+                return self._json(400, {"message": "Expected a row number and true/false."})
+            payload = dashboard_payload(cfg.nf_home, date.today())
+            if payload.get("empty"):
+                return self._json(400, {"message": "There's no brief yet."})
+            picks = {p["row_id"] for p in [payload["top"], *payload["others"], *payload["dormant"]]}
+            if row_id not in picks:
+                return self._json(400, {"message": "That person isn't in this week's brief any more. Reload the page."})
+            set_done(cfg.nf_home, payload["week_of"], row_id, done)
+            return self._json(200, {"progress": dashboard_payload(cfg.nf_home, date.today())["progress"]})
 
         def _events(self, run_id: str):
             run = state["runs"].get(run_id)
@@ -249,7 +266,14 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                 except ValueError:
                     pass
                 return self._json(200, {"saved": name})
-            body = json.loads(self.rfile.read(length) or b"{}") if length else {}
+            try:
+                body = json.loads(self.rfile.read(length) or b"{}") if length else {}
+            except ValueError:
+                return self._json(400, {"message": "That request wasn't valid. Reload the page and try again."})
+            if not isinstance(body, dict):
+                return self._json(400, {"message": "That request wasn't valid. Reload the page and try again."})
+            if url.path == "/api/done":
+                return self._done(body)
             if url.path == "/api/run":
                 file = Path(body.get("file") or "").name or None
                 if file and not (cfg.nf_home / "inbox" / file).is_file():

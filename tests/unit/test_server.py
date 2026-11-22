@@ -159,3 +159,41 @@ def test_check_endpoint_survives_missing_uv(server):
 
 def test_server_declares_python_version():
     assert 'requires-python = ">=3.11"' in (ROOT / "plugins" / "network-focus" / "app" / "server.py").read_text()
+
+
+def put_snapshot(srv, brief_dict, roster_dict, warnings_dict):
+    from nf_core.snapshot import build_snapshot
+    snap = build_snapshot(brief_dict, roster_dict, warnings_dict)
+    (srv.cfg.nf_home / "briefs" / f"{snap['week_of']}-network-focus.json").write_text(json.dumps(snap))
+
+
+def test_dashboard_empty_then_filled(server, brief_dict, roster_dict, warnings_dict):
+    status, body, _ = call(server, "GET", "/api/dashboard")
+    assert status == 200 and json.loads(body) == {"empty": True}
+    put_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    data = json.loads(call(server, "GET", "/api/dashboard")[1])
+    assert data["top"]["name"] == "Diana Chen" and data["progress"]["total"] == 7
+
+
+def test_dashboard_requires_token(server):
+    assert call(server, "GET", "/api/dashboard", cookie=False)[0] == 401
+
+
+def test_done_updates_progress(server, brief_dict, roster_dict, warnings_dict):
+    put_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    status, body, _ = call(server, "POST", "/api/done", body={"row_id": 3, "done": True})
+    assert status == 200 and json.loads(body)["progress"]["done"] == 1
+    assert json.loads(call(server, "GET", "/api/dashboard")[1])["top"]["done"] is True
+
+
+def test_done_rejects_unknown_row(server, brief_dict, roster_dict, warnings_dict):
+    put_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    assert call(server, "POST", "/api/done", body={"row_id": 99, "done": True})[0] == 400
+    assert call(server, "POST", "/api/done", body={"row_id": "3", "done": "yes"})[0] == 400
+    assert call(server, "POST", "/api/done", body=b"{not json", headers={"Content-Type": "application/json"})[0] == 400
+
+
+def test_done_requires_origin(server, brief_dict, roster_dict, warnings_dict):
+    put_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    assert call(server, "POST", "/api/done", origin=False, headers={"Origin": "https://evil.com"},
+                body={"row_id": 3, "done": True})[0] == 403
