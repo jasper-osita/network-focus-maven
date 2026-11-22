@@ -2,4 +2,4 @@
 
 | Case | Result | Details | Time | Cost | Grade (G/S/C/P/L) |
 |---|---|---|---|---|---|
-| update-series-c-newcomer | PASS | all checks met | 81s | $0.44 | - |
+| update-series-c-newcomer | PASS | all checks met | 66s | $0.62 | - |

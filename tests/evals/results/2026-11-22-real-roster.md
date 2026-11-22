@@ -2,4 +2,4 @@
 
 | Case | Result | Details | Time | Cost | Grade (G/S/C/P/L) |
 |---|---|---|---|---|---|
-| real-roster | PASS | all checks met | 113s | $0.93 | - |
+| real-roster | PASS | all checks met | 117s | $0.96 | - |

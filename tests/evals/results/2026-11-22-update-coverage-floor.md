@@ -2,4 +2,4 @@
 
 | Case | Result | Details | Time | Cost | Grade (G/S/C/P/L) |
 |---|---|---|---|---|---|
-| update-coverage-floor | PASS | all checks met | 62s | $0.47 | - |
+| update-coverage-floor | PASS | all checks met | 44s | $0.52 | - |
