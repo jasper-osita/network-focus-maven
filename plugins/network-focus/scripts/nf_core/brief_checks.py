@@ -119,9 +119,9 @@ def validate_brief(brief: dict, roster: dict) -> list[Problem]:
         """Code marks a pick 'missing' on Update when its row left the roster. Only then are its row checks skipped."""
         if not item.get("missing"):
             return False
-        if item["row_id"] in rows:
+        if item["row_id"] >= 0:  # Update gives a missing pick a negative id, so it can't collide with a real row
             problems.append(Problem("MISSING_BUT_PRESENT", where,
-                                    f"{where}: {item['name']} is still in the spreadsheet, so they can't be marked missing."))
+                                    f"{where}: {item['name']} has a spreadsheet row, so they can't be marked missing."))
         elif not brief.get("updates"):
             problems.append(Problem("MISSING_NOT_ALLOWED", where,
                                     f"{where}: only a mid-week Update can mark someone missing. Pick people from the spreadsheet."))

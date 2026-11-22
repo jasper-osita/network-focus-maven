@@ -331,3 +331,13 @@ def test_update_run_uses_update_skill(server, monkeypatch, brief_dict, roster_di
     assert events[-1]["status"] == "done" and "Looking at who's new" in [e.get("step") for e in events]
     argv = json.loads((server.cfg.nf_home / ".fake-argv.json").read_text(encoding="utf-8"))
     assert argv[1] == "/network-focus:update"
+
+
+def test_status_survives_unreadable_drive(server, tmp_path, monkeypatch):
+    import pathlib
+    folder = use_drive(server, tmp_path)
+    real = pathlib.Path.glob
+    monkeypatch.setattr(pathlib.Path, "glob", lambda self, pat: (_ for _ in ()).throw(PermissionError(1, "denied"))
+                        if self == folder else real(self, pat))
+    status, body, _ = call(server, "GET", "/api/status")
+    assert status == 200 and json.loads(body)["inbox"] == []

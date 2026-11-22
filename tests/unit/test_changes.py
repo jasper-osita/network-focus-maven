@@ -82,3 +82,17 @@ def test_roster_diff_cli_blocked_file(tmp_path):
     snap.write_text(json.dumps({"version": 2, "roster_index": {}}), encoding="utf-8")
     code, out = _run_diff(bad, snap)
     assert code == 0 and out["ok"] is False and out["reason"] == "blocked" and out["message"]
+
+
+def test_roster_diff_cli_separates_changed_picks(tmp_path, make_roster):
+    from nf_core.roster import read_roster
+    roster = make_roster(TWO_ROWS)
+    contacts = [c.to_dict() for c in read_roster(roster)[0]]
+    before = [{**c, "notes": "Older notes."} for c in contacts]          # both rows changed since Monday
+    snap = tmp_path / "snap.json"
+    snap.write_text(json.dumps({"version": 2, "roster_index": roster_index(before),
+                                "people": {"2": {"name": "Marcus Wei", "company": "Sequoia Capital"}},
+                                "brief": {"focus": [{"row_id": 2, "name": "Marcus Wei"}], "dormant": []}}), encoding="utf-8")
+    code, out = _run_diff(roster, snap)
+    assert [p["name"] for p in out["changed"]] == ["Diana Chen"]
+    assert [p["name"] for p in out["changed_picks"]] == ["Marcus Wei"]

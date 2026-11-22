@@ -34,6 +34,10 @@ def main(argv=None) -> int:
     if a.mode == "cited-rows":
         out = Path(a.out) if a.out else Path(a.file).with_name("cited-rows.json")
         out.write_text(json.dumps(cited_rows(doc, roster, only_new=a.only_new), indent=2), encoding="utf-8")
+        if a.only_new:  # the fact-checker should see only what this Update wrote, not Monday's picks
+            only = {"week_of": doc.get("week_of"), "focus": [f for f in doc.get("focus", []) if f.get("new")],
+                    "dormant": [], "coming_up": [], "goal_gaps": [], "extra_checks": []}
+            (out.parent / "new-picks.json").write_text(json.dumps(only, indent=2, ensure_ascii=False), encoding="utf-8")
         print(json.dumps({"ok": True, "problems": [], "out": str(out)}))
         return 0
     try:

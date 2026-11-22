@@ -9,7 +9,7 @@ import json
 import sys
 from pathlib import Path
 
-from nf_core.changes import diff_roster
+from nf_core.changes import diff_roster, identity
 from nf_core.issues import BlockingError
 from nf_core.roster import read_roster
 
@@ -36,7 +36,13 @@ def main(argv=None) -> int:
     except Exception as e:  # a half-synced or locked file: report it, never crash the page's watcher
         print(json.dumps({"ok": False, "reason": "blocked", "message": f"Couldn't read {Path(a.roster).name}: {e}"}))
         return 0
-    out = diff_roster(index, [c.to_dict() for c in contacts])
+    people = snap.get("people", {})
+    picks = set()
+    for section in ("focus", "dormant"):
+        for item in (snap.get("brief") or {}).get(section, []):
+            row = people.get(str(item.get("row_id")), {})
+            picks.add(identity(row.get("name") or item.get("name", ""), row.get("company", "")))
+    out = diff_roster(index, [c.to_dict() for c in contacts], picks)
     print(json.dumps({"ok": True, "file": Path(a.roster).name, **out}, ensure_ascii=False))
     return 0
 

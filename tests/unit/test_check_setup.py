@@ -110,3 +110,16 @@ def test_check_spreadsheet_google_sheet(home, tmp_path):
     save_settings(home, {"roster_folder": str(folder)})
     r = _line(setup_checks(home, FREE_PORT), "Spreadsheet in inbox")
     assert r.status == "fail" and "Microsoft Excel" in r.fix
+
+
+def test_check_drive_no_access(home, tmp_path, monkeypatch):
+    import pathlib
+    folder = tmp_path / "Drive" / "Network Focus"
+    folder.mkdir(parents=True)
+    save_settings(home, {"roster_folder": str(folder)})
+    real = pathlib.Path.is_dir
+    monkeypatch.setattr(pathlib.Path, "is_dir", lambda self: (_ for _ in ()).throw(PermissionError(1, "denied"))
+                        if self == folder else real(self))
+    results = setup_checks(home, FREE_PORT)
+    r = _line(results, "Google Drive folder")
+    assert r.status == "fail" and "Privacy & Security" in r.fix

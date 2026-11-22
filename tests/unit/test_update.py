@@ -305,7 +305,7 @@ def test_apply_missing_pick_kept_with_question(snapshot, roster_dict):
     brief, _, _ = applied(snapshot, roster_plus(roster_dict, ANA, drop=("Paul Christiano",)),
                           {"people": [untied(26, "Ana Ruiz")]})
     paul = next(x for x in brief["focus"] if x["name"] == "Paul Christiano")
-    assert paul["missing"] is True and paul["row_id"] == 4 and paul["who"] == "Researcher, ARC Evals"
+    assert paul["missing"] is True and paul["row_id"] == -4 and paul["who"] == "Researcher, ARC Evals"
     assert brief["update_questions"] == ["Paul Christiano is no longer in the roster. Remove them from this week's list?"]
 
 
@@ -364,3 +364,97 @@ def test_cited_rows_only_new(tmp_path, snapshot, roster_dict):
                     "--roster", str(tmp_path / "roster.json"), "--out", str(tmp_path / "cited.json"), "--only-new"],
                    capture_output=True, text=True, check=True)
     assert [c["name"] for c in json.loads((tmp_path / "cited.json").read_text(encoding="utf-8"))["contacts"]] == ["Ana Ruiz"]
+
+
+# ---------------------------------------------------------------- review fixes
+def roster_deleted(roster, name):
+    """Delete a row the way a spreadsheet does: every row below it moves up by one."""
+    r = copy.deepcopy(roster)
+    gone = next(c["row_id"] for c in r["contacts"] if c["name"] == name)
+    r["contacts"] = [c for c in r["contacts"] if c["name"] != name]
+    for c in r["contacts"]:
+        if c["row_id"] > gone:
+            c["row_id"] -= 1
+    return r
+
+
+def slot_row(inp, name):
+    return next(s["row_id"] for s in inp["open_slots"] if s.get("name") == name)
+
+
+def test_apply_deleted_middle_row_never_collides(snapshot, roster_dict):
+    r = roster_deleted(roster_plus(roster_dict, ANA), "Paul Christiano")   # Sarah moves from row 5 to row 4
+    inp = prep_update(snapshot, r, {})
+    brief, _, summary = apply_update(snapshot, r, inp, ana_update(row_id=25, beats=slot_row(inp, "Reid Hoffman")), NOW)
+    paul = next(x for x in brief["focus"] if x["name"] == "Paul Christiano")
+    assert paul["missing"] is True and paul["row_id"] == -4 and paul["who"] == "Researcher, ARC Evals"
+    assert summary["bumped"] == ["Sarah Guo"] and "Sarah Guo" not in names(brief["focus"])
+    assert names(brief["focus"]) == ["Diana Chen", "Marcus Wei", "Reid Hoffman", "Paul Christiano", "Ana Ruiz"]
+    ids = [x["row_id"] for x in brief["focus"] + brief["dormant"]]
+    assert len(ids) == len(set(ids)) and validate_brief(brief, r) == []
+
+
+def test_apply_deleted_top_stays_top(snapshot, roster_dict):
+    r = roster_deleted(roster_plus(roster_dict, ANA), "Diana Chen")       # Paul moves onto Diana's old row 3
+    inp = prep_update(snapshot, r, {"3": "Diana Chen"})
+    brief, marks, summary = apply_update(snapshot, r, inp, ana_update(row_id=25, beats=slot_row(inp, "Reid Hoffman")), NOW)
+    assert brief["focus"][0]["name"] == "Diana Chen" and brief["focus"][0]["row_id"] == -3
+    assert summary["bumped"] == ["Sarah Guo"] and "Paul Christiano" in names(brief["focus"])
+    assert marks["-3"] == "Diana Chen" and validate_brief(brief, r) == []
+
+
+def test_apply_deleted_coming_up_person_is_dropped_with_question(snapshot, roster_dict):
+    r = roster_deleted(roster_plus(roster_dict, ANA), "Maya Patel")
+    brief, _, _ = applied(snapshot, r, {"people": [untied(25, "Ana Ruiz")]})
+    assert brief["coming_up"] == [] and any(q.startswith("Maya Patel is no longer in the roster") for q in brief["update_questions"])
+    assert validate_brief(brief, r) == []
+
+
+def test_prep_matches_names_with_curly_quotes(snapshot, roster_dict):
+    r = roster_plus(roster_dict, ANA)
+    next(c for c in r["contacts"] if c["row_id"] == 2)["name"] = "Marcus O'Wei"
+    snapshot["people"]["2"]["name"] = "Marcus O'Wei"           # the row, as the snapshot saved it
+    snapshot["brief"]["focus"][1]["name"] = "Marcus O’Wei"   # the model wrote a curly apostrophe
+    assert picks_by_name(prep_update(snapshot, r, {}))["Marcus O’Wei"]["row_id"] == 2
+
+
+def test_apply_update_cli_recomputes_slots_and_marks(tmp_path, snapshot, roster_dict):
+    home = tmp_path / "NF"
+    r = roster_plus(roster_dict, ANA)
+    work = write_work(home, snapshot, r, ana_update(beats=6))
+    inp = json.loads((work / "update-input.json").read_text(encoding="utf-8"))
+    inp["open_slots"].append({"kind": "replace", "row_id": 3, "name": "Diana Chen", "rank": 0})  # tampered
+    (work / "update-input.json").write_text(json.dumps(inp), encoding="utf-8")
+    (home / ".progress.json").write_text(json.dumps({"2026-11-23": {"5": "Sarah Guo"}}), encoding="utf-8")  # ticked meanwhile
+    code, out = run_apply(work)
+    brief = json.loads((work / "brief.json").read_text(encoding="utf-8"))
+    assert code == 0 and out["bumped"] == ["Paul Christiano"]
+    assert brief["focus"][0]["name"] == "Diana Chen" and "Sarah Guo" in names(brief["focus"])
+
+
+def test_locked_picks_checked_before_render(snapshot, roster_dict):
+    from nf_core.update import locked_violations
+    r = roster_plus(roster_dict, ANA)
+    brief, _, _ = applied(snapshot, r, ana_update(beats=6))
+    assert locked_violations(snapshot, brief, {}) == []
+    swapped = copy.deepcopy(brief)
+    swapped["focus"][0], swapped["focus"][4] = swapped["focus"][4], swapped["focus"][0]
+    assert [p.code for p in locked_violations(snapshot, swapped, {})] == ["LOCKED_PICK_MOVED"]
+    dropped = copy.deepcopy(brief)
+    dropped["focus"] = [f for f in dropped["focus"] if f["name"] != "Marcus Wei"]
+    assert [p.code for p in locked_violations(snapshot, dropped, {"2": "Marcus Wei"})] == ["LOCKED_PICK_MOVED"]
+    no_dormant = copy.deepcopy(brief)
+    no_dormant["dormant"] = no_dormant["dormant"][:1]
+    assert [p.code for p in locked_violations(snapshot, no_dormant, {})] == ["LOCKED_PICK_MOVED"]
+
+
+def test_cited_rows_only_new_writes_new_picks_brief(tmp_path, snapshot, roster_dict):
+    r = roster_plus(roster_dict, ANA)
+    brief, _, _ = applied(snapshot, r, ana_update(beats=6))
+    for name, doc in (("brief.json", brief), ("roster.json", r)):
+        (tmp_path / name).write_text(json.dumps(doc), encoding="utf-8")
+    subprocess.run([sys.executable, str(SCRIPTS / "validate_brief.py"), "cited-rows", str(tmp_path / "brief.json"),
+                    "--roster", str(tmp_path / "roster.json"), "--out", str(tmp_path / "cited.json"), "--only-new"],
+                   capture_output=True, text=True, check=True)
+    only = json.loads((tmp_path / "new-picks.json").read_text(encoding="utf-8"))
+    assert names(only["focus"]) == ["Ana Ruiz"] and only["dormant"] == [] and only["coming_up"] == []

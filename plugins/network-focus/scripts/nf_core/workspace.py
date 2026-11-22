@@ -115,28 +115,47 @@ def week_of(today: date) -> date:
     return today + timedelta(days=7 - wd) if wd >= 5 else today - timedelta(days=wd)
 
 
+DRIVE_NO_ACCESS = ("Your computer isn't letting Network Focus read the Network Focus folder in Google Drive ({folder}). "
+                   "On a Mac, open System Settings → Privacy & Security → Files and Folders (or Full Disk Access) "
+                   "and allow uv, then try again.")
+DRIVE_UNREADABLE = ("I couldn't open the Network Focus folder in Google Drive ({folder}). Check the internet connection "
+                    "and that Google Drive for desktop is running, then try again.")
+GOOGLE_SHEET_MESSAGE = ("The roster in Google Drive is a Google Sheet, which I can't read. In Drive, open it and choose "
+                        "File → Download → Microsoft Excel, then put that file in the Network Focus folder. Or keep "
+                        "the roster as an Excel file.")
+
+
+def _entries(ws: Workspace) -> list[tuple[Path, float]]:
+    """Every visible file in the roster folder with its modified time. Drive errors become plain messages."""
+    folder = ws.roster_folder
+    try:
+        if folder is not None and not folder.is_dir():
+            raise block("DRIVE_FOLDER_MISSING",
+                        f"I can't find the Network Focus folder in Google Drive ({folder}). Open Google Drive for "
+                        "desktop and check you're signed in, then try again.")
+        if not ws.inbox.exists():
+            return []
+        return [(f, f.stat().st_mtime) for f in ws.inbox.iterdir() if f.is_file() and not f.name.startswith(("~$", "."))]
+    except PermissionError:
+        raise block("DRIVE_NO_ACCESS", DRIVE_NO_ACCESS.format(folder=folder or ws.inbox))
+    except OSError:
+        raise block("DRIVE_UNREADABLE", DRIVE_UNREADABLE.format(folder=folder or ws.inbox))
+
+
 def pick_roster(ws: Workspace, explicit: Path | None) -> tuple[Path, list[Issue]]:
     if explicit:
         p = Path(explicit).expanduser()
         if not p.exists():
             raise block("NO_SPREADSHEET", f"I couldn't find {p}. Check the file name, or drag the file into {ws.inbox}.")
         return p, []
-    folder = ws.roster_folder
-    if folder is not None and not folder.is_dir():
-        raise block("DRIVE_FOLDER_MISSING",
-                    f"I can't find the Network Focus folder in Google Drive ({folder}). Open Google Drive for "
-                    "desktop and check you're signed in, then try again.")
-    files = [f for f in ws.inbox.iterdir()
-             if f.is_file() and f.suffix.lower() in SPREADSHEET_SUFFIXES
-             and not f.name.startswith(("~$", "."))] if ws.inbox.exists() else []
-    if not files and any(f.suffix.lower() == ".gsheet" for f in ws.inbox.glob("*")):
-        raise block("GOOGLE_SHEET",
-                    "The roster in Google Drive is a Google Sheet, which I can't read. In Drive, open it and choose "
-                    "File → Download → Microsoft Excel, then put that file in the Network Focus folder. Or keep the "
-                    "roster as an Excel file.")
+    entries = _entries(ws)
+    files = [f for f, _ in sorted(entries, key=lambda e: -e[1]) if f.suffix.lower() in SPREADSHEET_SUFFIXES]
+    newest = max((t for f, t in entries if f.suffix.lower() in SPREADSHEET_SUFFIXES), default=None)
+    sheets = [t for f, t in entries if f.suffix.lower() == ".gsheet"]
+    if sheets and (newest is None or max(sheets) > newest):  # someone moved the roster into Google Sheets
+        raise block("GOOGLE_SHEET", GOOGLE_SHEET_MESSAGE)
     if not files:
-        other = [f for f in ws.inbox.iterdir() if f.is_file() and f.suffix.lower() in OTHER_SPREADSHEETS
-                 and not f.name.startswith(("~$", "."))] if ws.inbox.exists() else []
+        other = [f for f, _ in entries if f.suffix.lower() in OTHER_SPREADSHEETS]
         if other:
             raise block("UNSUPPORTED_FILE",
                         f"{other[0].name} is in a format I can't read. Open it and save or export it as .xlsx or .csv "
@@ -144,7 +163,6 @@ def pick_roster(ws: Workspace, explicit: Path | None) -> tuple[Path, list[Issue]
         raise block("NO_SPREADSHEET",
                     f"There's no spreadsheet in {ws.inbox}. Drag this week's file into that folder "
                     "(or onto the Network Focus page), then run again.")
-    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
     issues = []
     if len(files) > 1:
         issues.append(Issue("MULTIPLE_FILES", "info",

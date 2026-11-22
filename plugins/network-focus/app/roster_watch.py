@@ -33,13 +33,13 @@ class RosterWatch:
             self._check(now)
         except Exception:
             with self._lock:
-                self._changes = None
+                self._changes, self._diffed = None, None  # look again properly once things recover
 
     def _check(self, now: float) -> None:
         roster, snap = newest_roster(roster_dir(self.nf_home)), latest_snapshot_path(self.nf_home)
         if roster is None or snap is None:
             with self._lock:
-                self._seen, self._changes = None, None
+                self._seen, self._changes, self._diffed = None, None, None
             return
         st = roster.stat()
         key = (str(roster), st.st_size, st.st_mtime_ns)
@@ -51,9 +51,10 @@ class RosterWatch:
         if basis == self._diffed:
             return
         result = self.run_diff(roster, snap)
-        found = isinstance(result, dict) and result.get("ok") and (result.get("new") or result.get("changed"))
+        ok = isinstance(result, dict) and bool(result.get("ok"))
+        found = ok and (result.get("new") or result.get("changed"))
         with self._lock:
-            self._diffed = basis
+            self._diffed = basis if ok else None  # a failed diff (timeout, offline file) is retried next time
             self._changes = {"file": roster.name, "modified": st.st_mtime,
                              "new": result.get("new", []), "changed": result.get("changed", []),
                              "removed": result.get("removed", [])} if found else None

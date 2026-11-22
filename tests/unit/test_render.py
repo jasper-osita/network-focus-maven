@@ -139,3 +139,16 @@ def test_render_missing_pick_uses_who(tmp_path, brief_dict, roster_dict, warning
     brief_dict["updates"] = [{"at": "2026-11-25T10:50", "added": [], "bumped": []}]
     assert "Paul Christiano · Researcher, ARC Evals" in render_markdown(brief_dict, r, warnings_dict)
     assert render_pdf(brief_dict, r, warnings_dict, tmp_path / "b.pdf") == 1
+
+
+def test_render_cli_refuses_update_that_moved_the_top(tmp_path, brief_dict, roster_dict, warnings_dict):
+    from nf_core.snapshot import build_snapshot
+    home = setup_work(tmp_path, brief_dict, roster_dict, warnings_dict)
+    (home / "briefs").mkdir(exist_ok=True)
+    (home / "briefs" / "2026-11-23-network-focus.json").write_text(json.dumps(build_snapshot(brief_dict, roster_dict, warnings_dict)))
+    b = copy.deepcopy(brief_dict)
+    b["focus"][0], b["focus"][1] = b["focus"][1], b["focus"][0]
+    b["updates"] = [{"at": "2026-11-25T10:50", "added": [], "bumped": []}]
+    (home / ".work" / "brief.json").write_text(json.dumps(b))
+    code, out = run_cli(home, "--today", "2026-11-25")
+    assert code == 1 and any(p["code"] == "LOCKED_PICK_MOVED" for p in out["problems"])

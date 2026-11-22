@@ -126,3 +126,30 @@ def test_watch_diff_error_is_contained(home):
     w = RosterWatch(home, boom, interval=120)
     w.check_once(T)
     assert w.state() == {"changes": None}
+
+
+def test_watch_rediffs_after_folder_blip(home):
+    f = put(home / "inbox", mtime=T - 600)
+    diff = Diff()
+    w = RosterWatch(home, diff, interval=120)
+    w.check_once(T)
+    f.rename(home / "away.xlsx")                       # Drive unmounted while the laptop slept
+    w.check_once(T + 120)
+    assert w.state() == {"changes": None}
+    (home / "away.xlsx").rename(f)
+    w.check_once(T + 240)
+    assert len(diff.calls) == 2 and w.state()["changes"] is not None
+
+
+def test_watch_retries_failed_diff(home):
+    put(home / "inbox", mtime=T - 600)
+    results = [{"ok": False, "reason": "error"}, Diff().result]
+    calls = []
+
+    def flaky(roster, snap):
+        calls.append(roster)
+        return results[len(calls) - 1]
+    w = RosterWatch(home, flaky, interval=120)
+    w.check_once(T)
+    w.check_once(T + 120)
+    assert len(calls) == 2 and w.state()["changes"]["new"][0]["name"] == "Ana Ruiz"

@@ -14,6 +14,7 @@ from pathlib import Path
 from nf_core.brief_checks import validate_brief
 from nf_core.render import render_markdown, render_pdf
 from nf_core.snapshot import build_snapshot
+from nf_core.update import latest_snapshot, load_marks, locked_violations
 from nf_core.workspace import Workspace, record_run
 
 
@@ -26,6 +27,11 @@ def main(argv=None) -> int:
     ws = Workspace(work.parent)
     brief, roster, warnings = (json.loads((work / n).read_text(encoding="utf-8")) for n in ("brief.json", "roster.json", "warnings.json"))
     problems = validate_brief(brief, roster)
+    if brief.get("updates"):  # a mid-week Update: the #1, dormant and done picks must be untouched
+        snap_path = latest_snapshot(ws.briefs)
+        snap = json.loads(snap_path.read_text(encoding="utf-8")) if snap_path else None
+        if snap and snap.get("week_of") == brief["week_of"]:
+            problems += locked_violations(snap, brief, load_marks(ws.root, brief["week_of"]))
     if problems:
         print(json.dumps({"ok": False, "message": "The brief didn't pass its checks, so no PDF was made.",
                           "problems": [p.to_dict() for p in problems]}))

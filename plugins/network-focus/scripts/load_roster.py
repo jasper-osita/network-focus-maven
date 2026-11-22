@@ -62,6 +62,14 @@ def main(argv=None) -> int:
                     work_dir=str(ws.work), contacts=len(contacts), warnings=n_warn)
     except BlockingError as e:
         return emit("blocked", e.issue.message, 2, code=e.issue.code, work_dir=str(ws.work))
+    except PermissionError:
+        return emit("blocked", "Your computer isn't letting Network Focus open the spreadsheet. On a Mac, open System "
+                               "Settings → Privacy & Security → Files and Folders (or Full Disk Access) and allow uv, "
+                               "then try again.", 2, code="NO_ACCESS", work_dir=str(ws.work))
+    except OSError:
+        return emit("blocked", "I couldn't open the spreadsheet. If it's in Google Drive, check the internet "
+                               "connection and that Google Drive for desktop is running, then try again.", 2,
+                    code="UNREADABLE", work_dir=str(ws.work))
     except Exception:
         try:
             ws.work.mkdir(parents=True, exist_ok=True)

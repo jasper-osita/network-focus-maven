@@ -246,8 +246,11 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
             if not self._token_ok():
                 return self._send(401, b"unauthorized", "text/plain")
             if url.path == "/api/status":
-                inbox = sorted((f for f in roster_dir(cfg.nf_home).glob("*") if f.suffix.lower() in UPLOAD_SUFFIXES
-                                and not f.name.startswith(("~$", "."))), key=lambda f: -f.stat().st_mtime)
+                try:
+                    inbox = sorted((f for f in roster_dir(cfg.nf_home).glob("*") if f.suffix.lower() in UPLOAD_SUFFIXES
+                                    and not f.name.startswith(("~$", "."))), key=lambda f: -f.stat().st_mtime)
+                except OSError:  # Drive signed out, offline, or blocked by the Mac's privacy settings
+                    inbox = []
                 briefs = sorted((cfg.nf_home / "briefs").glob("*.pdf"), key=lambda f: -f.stat().st_mtime)
                 run = state["run"]
                 return self._json(200, {
@@ -337,7 +340,11 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                     return self._json(409, {"message": "The Network Focus folder in Google Drive isn't there. Open "
                                                        "Google Drive for desktop and check you're signed in."})
                 dest = folder / name
-                dest.write_bytes(self.rfile.read(length))
+                try:
+                    dest.write_bytes(self.rfile.read(length))
+                except OSError:
+                    return self._json(409, {"message": "I couldn't save the file in the Network Focus folder. Click "
+                                                       "Check setup to see what's wrong."})
                 try:  # keep the spreadsheet's own date, so the stale-data warning still works
                     mtime = int(self.headers.get("X-Last-Modified", "")) / 1000
                     if 0 < mtime < time.time() + 86400:

@@ -35,9 +35,11 @@ def roster_index(contacts: list[dict]) -> dict[str, dict]:
     return index
 
 
-def diff_roster(index: dict[str, dict], contacts: list[dict]) -> dict:
-    """New, changed and removed people, comparing today's rows with the index saved in the brief."""
-    new, changed, seen = [], [], set()
+def diff_roster(index: dict[str, dict], contacts: list[dict], picks: set[str] | frozenset = frozenset()) -> dict:
+    """New, changed and removed people, comparing today's rows with the index saved in the brief.
+    Changed people who are already this week's picks (identities in `picks`) are kept apart in changed_picks:
+    Update leaves them as they are, so they shouldn't offer an Update on their own."""
+    new, changed, changed_picks, seen = [], [], [], set()
     for c in contacts:
         key = identity(c["name"], c.get("company", ""))
         if key in seen:
@@ -47,6 +49,6 @@ def diff_roster(index: dict[str, dict], contacts: list[dict]) -> dict:
         if key not in index:
             new.append(who)
         elif index[key].get("fp") != row_fingerprint(c):
-            changed.append(who)
+            (changed_picks if key in picks else changed).append(who)
     removed = [{"name": v["name"]} for k, v in index.items() if k not in seen]
-    return {"new": new, "changed": changed, "removed": removed}
+    return {"new": new, "changed": changed, "changed_picks": changed_picks, "removed": removed}

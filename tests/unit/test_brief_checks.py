@@ -245,7 +245,7 @@ def test_missing_flag_needs_updates(brief_dict, roster_dict):
     r["contacts"] = [c for c in r["contacts"] if c["name"] != "Paul Christiano"]
     b = copy.deepcopy(brief_dict)
     paul = next(f for f in b["focus"] if f["name"] == "Paul Christiano")
-    paul.update({"missing": True, "who": "Researcher, ARC Evals"})
+    paul.update({"row_id": -4, "missing": True, "who": "Researcher, ARC Evals"})
     assert "MISSING_NOT_ALLOWED" in codes(validate_brief(b, r))
     b["updates"] = [{"at": "2026-11-25T10:50", "added": [], "bumped": []}]
     assert validate_brief(b, r) == []

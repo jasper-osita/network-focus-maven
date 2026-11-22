@@ -11,7 +11,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from nf_core.update import apply_update, latest_snapshot, validate_update
+from nf_core.update import apply_update, latest_snapshot, load_marks, prep_update, validate_update
 
 
 def main(argv=None) -> int:
@@ -22,15 +22,16 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     work = Path(a.work)
     root = work.parent
-    roster, inp, update = (json.loads((work / n).read_text(encoding="utf-8"))
-                           for n in ("roster.json", "update-input.json", "update.json"))
+    roster, update = (json.loads((work / n).read_text(encoding="utf-8")) for n in ("roster.json", "update.json"))
+    snap_path = Path(a.snapshot) if a.snapshot else latest_snapshot(root / "briefs")
+    snap = json.loads(snap_path.read_text(encoding="utf-8"))
+    # Recomputed, not read from update-input.json: the locks and slots come from code and the latest ticks.
+    inp = prep_update(snap, roster, load_marks(root, snap["week_of"]))
     problems = validate_update(update, roster, inp)
     if problems:
         print(json.dumps({"ok": False, "message": "update.json doesn't follow the rules yet; nothing was changed.",
                           "problems": [p.to_dict() for p in problems]}))
         return 1
-    snap_path = Path(a.snapshot) if a.snapshot else latest_snapshot(root / "briefs")
-    snap = json.loads(snap_path.read_text(encoding="utf-8"))
     now = a.now or datetime.now().strftime("%Y-%m-%dT%H:%M")
     brief, marks, summary = apply_update(snap, roster, inp, update, now)
     (work / "brief.json").write_text(json.dumps(brief, indent=2, ensure_ascii=False), encoding="utf-8")

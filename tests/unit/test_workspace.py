@@ -208,3 +208,54 @@ def test_pick_roster_reads_from_drive_folder(tmp_path, make_roster):
     save_settings(root, {"roster_folder": str(folder)})
     path, _ = pick_roster(Workspace(root), None)
     assert path == folder / "roster.xlsx"
+
+
+def _deny(monkeypatch, method, target):
+    import pathlib
+    real = getattr(pathlib.Path, method)
+
+    def guarded(self, *a, **kw):
+        if self == target:
+            raise PermissionError(1, "Operation not permitted", str(self))
+        return real(self, *a, **kw)
+    monkeypatch.setattr(pathlib.Path, method, guarded)
+
+
+def test_pick_roster_drive_no_access(tmp_path, monkeypatch):
+    root, folder = tmp_path / "NF", tmp_path / "Drive" / "Network Focus"
+    root.mkdir()
+    folder.mkdir(parents=True)
+    save_settings(root, {"roster_folder": str(folder)})
+    _deny(monkeypatch, "iterdir", folder)
+    with pytest.raises(BlockingError) as e:
+        pick_roster(Workspace(root), None)
+    assert e.value.issue.code == "DRIVE_NO_ACCESS" and "Privacy & Security" in e.value.issue.message
+
+
+def test_pick_roster_google_sheet_newer_than_excel(tmp_path, make_roster):
+    root, folder = tmp_path / "NF", tmp_path / "Drive" / "Network Focus"
+    root.mkdir()
+    folder.mkdir(parents=True)
+    old = folder / "roster.xlsx"
+    shutil.copy(make_roster([{"Name": "Ana Ruiz"}]), old)
+    os.utime(old, (time.time() - 1000, time.time() - 1000))
+    (folder / "Roster.gsheet").write_text("{}", encoding="utf-8")
+    save_settings(root, {"roster_folder": str(folder)})
+    with pytest.raises(BlockingError) as e:
+        pick_roster(Workspace(root), None)
+    assert e.value.issue.code == "GOOGLE_SHEET"
+    os.utime(folder / "Roster.gsheet", (time.time() - 5000, time.time() - 5000))
+    assert pick_roster(Workspace(root), None)[0] == old
+
+
+def test_load_roster_offline_drive_file(home, monkeypatch, capsys, sample_xlsx):
+    import load_roster
+    shutil.copy(sample_xlsx, home / "inbox")
+    monkeypatch.setenv("NF_HOME", str(home))
+
+    def offline(path):
+        raise OSError(60, "Operation timed out", str(path))
+    monkeypatch.setattr(load_roster, "read_roster", offline)
+    assert load_roster.main([]) == 2
+    out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert out["status"] == "blocked" and "internet connection" in out["message"]

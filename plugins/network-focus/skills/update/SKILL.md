@@ -69,15 +69,15 @@ Only if step 5 reported anyone in `added`:
 
 Run: `uv run "${CLAUDE_PLUGIN_ROOT}/scripts/validate_brief.py" cited-rows "WORK/brief.json" --roster "WORK/roster.json" --out "WORK/cited-rows.json" --only-new`
 
-Then launch `network-focus:fact-checker` in the foreground with:
+It also writes `WORK/new-picks.json`: just the people this Update added. Then launch `network-focus:fact-checker` in the foreground with:
 
 ```
-Brief: WORK/brief.json
+Brief: WORK/new-picks.json
 Cited rows: WORK/cited-rows.json
 Write your output to: WORK/factcheck.json
 ```
 
-For each claim the row doesn't support, rewrite it in update.json to say only what the row supports, then run steps 5 and 6 again.
+For each claim the row doesn't support, rewrite it in update.json to say only what the row supports, then run steps 5 and 6 again. Monday's picks were checked on Monday; leave them alone.
 
 ## 8. Make the PDF
 

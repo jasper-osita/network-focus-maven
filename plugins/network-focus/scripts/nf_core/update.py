@@ -45,16 +45,34 @@ def _is_done(marks: dict, row_id: int, name: str) -> bool:
     return isinstance(stored, str) and _norm(stored) == _norm(name)
 
 
+def _gone(item: dict) -> bool:
+    """Marked missing by an earlier Update: its id is negative, so it can never collide with a real row."""
+    return bool(item.get("missing")) or item["row_id"] < 0
+
+
+def _identity_of(item: dict, people: dict) -> str:
+    """Who a brief item is, from the row the snapshot saved (the model may spell a name slightly differently)."""
+    row = {} if _gone(item) else people.get(str(item["row_id"]), {})
+    company = row.get("company") if row else (item.get("who", "").split(", ")[-1] if item.get("who") else "")
+    return identity(row.get("name") or item["name"], company or "")
+
+
+def _rows_by_identity(roster: dict) -> dict[str, int]:
+    rows: dict[str, int] = {}
+    for c in roster["contacts"]:
+        rows.setdefault(identity(c["name"], c.get("company", "")), c["row_id"])  # first duplicate wins, like the index
+    return rows
+
+
 def prep_update(snapshot: dict, roster: dict, marks: dict[str, str]) -> dict:
     old_people = snapshot.get("people", {})
-    new_rows = {identity(c["name"], c.get("company", "")): c["row_id"] for c in roster["contacts"]}
+    new_rows = _rows_by_identity(roster)
     picks = []
     for section in ("focus", "dormant"):
         for rank, item in enumerate(snapshot["brief"].get(section, [])):
-            company = old_people.get(str(item["row_id"]), {}).get("company") or item.get("who", "").split(", ")[-1]
             done = _is_done(marks, item["row_id"], item["name"])
             picks.append({"section": section, "rank": rank, "old_row_id": item["row_id"],
-                          "row_id": None if item.get("missing") else new_rows.get(identity(item["name"], company or "")),
+                          "row_id": None if _gone(item) else new_rows.get(_identity_of(item, old_people)),
                           "name": item["name"], "goals": list(item.get("goals") or []), "done": done,
                           "locked": section == "dormant" or rank == 0 or done})
     picked = {p["row_id"] for p in picks if p["row_id"] is not None}
@@ -133,23 +151,28 @@ def apply_update(snapshot: dict, roster: dict, update_input: dict, update: dict,
     people_before = snapshot.get("people", {})
     by_old = {(p["section"], p["old_row_id"]): p for p in update_input["picks"]}
     questions = list(brief.get("update_questions", []))
+    gone_ask = "{} is no longer in the roster. Remove them from this week's list?"
     for section in ("focus", "dormant"):
         for item in brief.get(section, []):
             pick = by_old.get((section, item["row_id"]))
-            if pick is None:
+            if pick is None or _gone(item):
                 continue
-            if pick["row_id"] is None:
-                if not item.get("missing"):
-                    row = people_before.get(str(item["row_id"]), {})
-                    item.update({"missing": True, "who": ", ".join(x for x in (row.get("role"), row.get("company")) if x)})
-                    questions.append(f"{item['name']} is no longer in the roster. Remove them from this week's list?")
+            if pick["row_id"] is None:  # their row left the sheet: keep them, under an id no real row can have
+                row = people_before.get(str(item["row_id"]), {})
+                item.update({"row_id": -abs(item["row_id"]), "missing": True,
+                             "who": ", ".join(x for x in (row.get("role"), row.get("company")) if x)})
+                questions.append(gone_ask.format(item["name"]))
             else:
                 item["row_id"] = pick["row_id"]
-    new_rows = {identity(c["name"], c.get("company", "")): c["row_id"] for c in roster["contacts"]}
-    old_people = snapshot.get("people", {})
+    new_rows = _rows_by_identity(roster)
+    kept = []
     for item in brief.get("coming_up", []):
-        company = old_people.get(str(item["row_id"]), {}).get("company", "")
-        item["row_id"] = new_rows.get(identity(item["name"], company), item["row_id"])
+        row_id = new_rows.get(_identity_of(item, people_before))
+        if row_id is None:
+            questions.append(f"{item['name']} is no longer in the roster, so they're off this week's coming-up list.")
+            continue
+        kept.append({**item, "row_id": row_id})
+    brief["coming_up"] = kept
 
     focus = brief["focus"]
     before = _focus_goals(focus)
@@ -173,7 +196,7 @@ def apply_update(snapshot: dict, roster: dict, update_input: dict, update: dict,
         for s in replace:
             if s["row_id"] in taken or s["rank"] < floor:
                 continue
-            idx = next(i for i, f in enumerate(focus) if f["row_id"] == s["row_id"])
+            idx = s["rank"]  # its place in Monday's order; swaps happen in place, so this never shifts
             trial = focus[:idx] + [item] + focus[idx + 1:]
             if before <= _focus_goals(trial):
                 focus[idx] = item
@@ -192,5 +215,23 @@ def apply_update(snapshot: dict, roster: dict, update_input: dict, update: dict,
     brief["updates"] = brief.get("updates", []) + [{"at": now, "added": added, "bumped": bumped}]
     if questions:
         brief["update_questions"] = questions
-    marks = {str(p["row_id"]): p["name"] for p in update_input["picks"] if p["done"] and p["row_id"] is not None}
+    marks = {str(p["row_id"] if p["row_id"] is not None else -abs(p["old_row_id"])): p["name"]
+             for p in update_input["picks"] if p["done"]}
     return brief, marks, {"added": added, "bumped": bumped, "refused": refused}
+
+
+def locked_violations(snapshot: dict, brief: dict, marks: dict[str, str]) -> list[Problem]:
+    """Before an updated brief is rendered: the #1, the dormant picks and every done pick must still be there,
+    whatever happened to the working files in between."""
+    old, problems = snapshot["brief"], []
+    names = lambda items: [_norm(x["name"]) for x in items]
+    if old.get("focus") and (not brief.get("focus") or names(brief["focus"])[0] != names(old["focus"])[0]):
+        problems.append(Problem("LOCKED_PICK_MOVED", "focus[0]",
+                                f"{old['focus'][0]['name']} was this week's #1 and must stay the #1 after an Update."))
+    if sorted(names(old.get("dormant", []))) != sorted(names(brief.get("dormant", []))):
+        problems.append(Problem("LOCKED_PICK_MOVED", "dormant", "An Update can't change the dormant picks."))
+    kept = set(names(brief.get("focus", []) + brief.get("dormant", [])))
+    for item in old.get("focus", [])[1:]:
+        if _is_done(marks, item["row_id"], item["name"]) and _norm(item["name"]) not in kept:
+            problems.append(Problem("LOCKED_PICK_MOVED", "focus", f"{item['name']} is done and can't be replaced."))
+    return problems
