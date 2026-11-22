@@ -338,7 +338,8 @@ $("go").addEventListener("click", async () => {
         await loadDashboard();
       } else {
         $("result").innerHTML = `<div class="result-bad"><p><strong>The brief couldn't be made.</strong></p><p>${esc(ev.message)}</p>
-          <p class="fix">If you're not sure what to do, click Check setup below.</p></div>`;
+          <p class="fix">If you're not sure what to do, click Check setup below.</p>
+          ${ev.log ? `<p class="fix">The full record of this run is saved in ${esc(ev.log)}</p>` : ""}</div>`;
       }
       refresh();
     }

@@ -45,13 +45,15 @@ class AppConfig:
     uv_path: str = "uv"
     scripts_dir: Path = HERE / "scripts"
     run_timeout: int = 900  # seconds; a hung run is stopped so the page never stays locked
+    log_dir: Path = HERE / "logs"  # last-run.log: the full record of the latest run, for troubleshooting
 
     @classmethod
     def load(cls, path: Path) -> "AppConfig":
         d = json.loads(Path(path).read_text(encoding="utf-8"))
         return cls(port=d["port"], token=d["token"], nf_home=Path(d["nf_home"]), claude_path=d["claude_path"],
                    claude_args=d.get("claude_args", list(DEFAULT_CLAUDE_ARGS)), uv_path=d.get("uv_path", "uv"),
-                   scripts_dir=Path(d.get("scripts_dir", HERE / "scripts")), run_timeout=d.get("run_timeout", 900))
+                   scripts_dir=Path(d.get("scripts_dir", HERE / "scripts")), run_timeout=d.get("run_timeout", 900),
+                   log_dir=Path(d.get("log_dir", HERE / "logs")))
 
 
 def _start_tree(cmd: list[str], **kw) -> subprocess.Popen:
@@ -94,7 +96,13 @@ class Run:
     def _go(self) -> None:
         cfg, started = self.cfg, time.time()
         prompt = "/network-focus:brief" + (f" {cfg.nf_home / 'inbox' / self.file}" if self.file else "")
-        result_text, stderr, last, timed_out = "", "", None, threading.Event()
+        result_text, stderr, last, timed_out, final = "", "", None, threading.Event(), {}
+        log_path = cfg.log_dir / "last-run.log"
+        try:
+            cfg.log_dir.mkdir(parents=True, exist_ok=True)
+            log = open(log_path, "w", encoding="utf-8")
+        except OSError:
+            log = None
         try:
             with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as err:  # a file, so a chatty stderr can't block stdout
                 p = _start_tree([cfg.claude_path, "-p", prompt, *cfg.claude_args], cwd=cfg.nf_home,
@@ -105,6 +113,8 @@ class Run:
                 watchdog.start()
                 try:
                     for line in p.stdout:
+                        if log:
+                            log.write(line)
                         try:
                             ev = json.loads(line)
                         except ValueError:
@@ -112,6 +122,7 @@ class Run:
                         if not isinstance(ev, dict):
                             continue
                         if ev.get("type") == "result":
+                            final = ev
                             result_text = str(ev.get("result", ""))
                         step = progress_from_event(ev)
                         if step and step != last:
@@ -129,6 +140,12 @@ class Run:
             stderr = repr(e)
             result_text = "Something went wrong making the brief. Click Generate to try again."
         finally:
+            if log:
+                try:
+                    log.write(f"\n--- stderr ---\n{stderr}\n")
+                    log.close()
+                except OSError:
+                    pass
             try:
                 pdfs = sorted((f for f in (cfg.nf_home / "briefs").glob("*.pdf") if f.stat().st_mtime >= started - 1),
                               key=lambda f: f.stat().st_mtime)
@@ -138,7 +155,8 @@ class Run:
                 elif pdfs:
                     self.add({"status": "done", "pdf_url": f"/briefs/{pdfs[-1].name}", "summary": result_text})
                 else:
-                    self.add({"status": "failed", "message": failure_message(result_text, stderr)})
+                    self.add({"status": "failed", "message": failure_message(result_text, stderr, final),
+                              "log": str(log_path)})
             finally:
                 self.done = True
 

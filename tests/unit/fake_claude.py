@@ -25,6 +25,10 @@ if mode == "hang":
 if mode == "weird":
     print("[1, 2]", flush=True)
     print('"just a string"', flush=True)
+if mode == "error":
+    print('API Error: 429 {"type":"error","error":{"type":"rate_limit_error"}}', file=sys.stderr, flush=True)
+    emit({"type": "result", "subtype": "error_during_execution", "is_error": True})
+    sys.exit(1)
 if mode == "signed_out":
     emit({"type": "result", "subtype": "error", "is_error": True, "result": "Invalid API key · Please run /login"})
     sys.exit(1)

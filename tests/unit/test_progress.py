@@ -24,3 +24,25 @@ def test_failure_message_signed_out():
     assert "signed out" in failure_message("", "Error: not logged in")
     assert failure_message("There's no spreadsheet in the inbox.", "") == "There's no spreadsheet in the inbox."
     assert "Check setup" in failure_message("", "")
+
+
+def test_failure_message_usage_limit():
+    ev = {"type": "result", "subtype": "error_during_execution", "is_error": True}
+    assert "usage limit" in failure_message("", 'API Error: 429 {"type":"rate_limit_error"}', ev)
+    assert "usage limit" in failure_message("Claude AI usage limit reached|1764000000", "", {})
+
+
+def test_failure_message_permission_denied():
+    ev = {"subtype": "success", "result": "", "permission_denials": [
+        {"tool_name": "Write", "tool_input": {"file_path": "/Users/x/Documents/Network Focus/.work/brief.json"}}]}
+    msg = failure_message("", "", ev)
+    assert "wasn't allowed" in msg and "Write" in msg and "Install Network Focus" in msg
+
+
+def test_failure_message_max_turns():
+    assert "too many steps" in failure_message("", "", {"subtype": "error_max_turns"})
+
+
+def test_failure_message_keeps_skill_explanation():
+    text = "I couldn't make a brief I'm confident in this week: the quotes didn't match."
+    assert failure_message(text, "", {"subtype": "success"}) == text

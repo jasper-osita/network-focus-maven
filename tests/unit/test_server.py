@@ -25,7 +25,7 @@ def server(tmp_path, monkeypatch):
     if sys.platform == "win32":  # Windows can't run a .py file directly
         fake = str(tmp_path / "fake_claude.cmd")
         Path(fake).write_text(f'@"{sys.executable}" "{FAKE}" %*\r\n')
-    cfg = AppConfig(port=0, token=TOKEN, nf_home=home, claude_path=fake, claude_args=[], uv_path="uv",
+    cfg = AppConfig(port=0, token=TOKEN, nf_home=home, claude_path=fake, claude_args=[], uv_path="uv", log_dir=tmp_path / "logs",
                     scripts_dir=ROOT / "plugins" / "network-focus" / "scripts")
     srv = make_server(cfg)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
@@ -226,3 +226,12 @@ def test_quit_endpoint_stops_server(server):
         except OSError:
             return
     raise AssertionError("server still answering after /api/quit")
+
+
+def test_failed_run_explains_and_keeps_a_log(server, monkeypatch):
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "error")
+    _, body, _ = call(server, "POST", "/api/run", body={})
+    final = sse(server, json.loads(body)["run_id"])[-1]
+    assert final["status"] == "failed" and "usage limit" in final["message"]
+    log = Path(final["log"])
+    assert log.exists() and "error_during_execution" in log.read_text(encoding="utf-8") and "429" in log.read_text(encoding="utf-8")
