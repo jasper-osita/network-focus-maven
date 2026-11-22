@@ -20,6 +20,10 @@ def progress_from_event(event: dict) -> str | None:
                 return "Checking the data"
             if "render_pdf.py" in cmd:
                 return "Making the PDF"
+            if "update_prep.py" in cmd:
+                return "Looking at who's new"
+            if "apply_update.py" in cmd:
+                return "Placing new people"
         elif name in ("Agent", "Task"):
             kind = inp.get("subagent_type", "")
             if kind.endswith("goal-scout"):

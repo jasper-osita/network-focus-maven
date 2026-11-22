@@ -1,6 +1,6 @@
 {
   "name": "network-focus",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Weekly Network Focus brief: reads the CEO's network spreadsheet and goals, picks the 3-5 people to invest in this week, flags dormant relationships and data problems, and produces a checked one-page PDF.",
   "author": {"name": "Jasper Osita"},
   "keywords": ["network", "relationships", "chief-of-staff", "weekly-brief"]

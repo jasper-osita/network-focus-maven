@@ -314,6 +314,31 @@ async function loadRosterChanges() {
 }
 setInterval(loadRosterChanges, 120000);
 
+$("updateBtn").addEventListener("click", async () => {
+  const btn = $("updateBtn"), say = (t) => { $("rosterText").textContent = t; };
+  btn.disabled = true;
+  let r, j;
+  try {
+    r = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ mode: "update" }) });
+    j = await r.json();
+  } catch (e) { say(OOPS); btn.disabled = false; return; }
+  if (!r.ok) { say(j.message); btn.disabled = false; return; }
+  say("Updating… Starting");
+  const es = new EventSource(`/api/run/${j.run_id}/events`);
+  es.onmessage = async (m) => {
+    const ev = JSON.parse(m.data);
+    if (ev.step) say(`Updating… ${ev.step}`);
+    if (ev.status) {
+      es.close();
+      btn.disabled = false;
+      if (ev.status === "done") { await loadDashboard(); await loadRosterChanges(); }
+      else say(`The update couldn't be made. ${ev.message}${ev.log ? ` The full record is saved in ${ev.log}` : ""}`);
+    }
+  };
+  es.onerror = () => { es.close(); btn.disabled = false; say("Lost touch with the page. Reload it in a minute to see the result."); };
+});
+
 const everyone = () => [dash.top, ...dash.others, ...dash.dormant];
 document.addEventListener("click", (e) => {
   const c = e.target.closest("[data-copy]");

@@ -81,9 +81,13 @@ def _kill_tree(p: subprocess.Popen) -> None:
             pass
 
 
+RUN_MODES = ("brief", "update")
+
+
 class Run:
-    def __init__(self, cfg: AppConfig, file: str | None):
+    def __init__(self, cfg: AppConfig, file: str | None, mode: str = "brief", on_done=None):
         self.id, self.cfg, self.file = uuid.uuid4().hex[:12], cfg, file
+        self.mode, self.on_done = mode, on_done
         self.events: list[dict] = []
         self.done = False
         self.lock = threading.Lock()
@@ -97,7 +101,11 @@ class Run:
 
     def _go(self) -> None:
         cfg, started = self.cfg, time.time()
-        prompt = "/network-focus:brief" + (f" {roster_dir(cfg.nf_home) / self.file}" if self.file else "")
+        if self.mode == "update":
+            prompt = "/network-focus:update"
+        else:
+            prompt = "/network-focus:brief" + (f" {roster_dir(cfg.nf_home) / self.file}" if self.file else "")
+        button = "Update" if self.mode == "update" else "Generate"
         result_text, stderr, last, timed_out, final = "", "", None, threading.Event(), {}
         log_path = cfg.log_dir / "last-run.log"
         try:
@@ -153,8 +161,13 @@ class Run:
                               key=lambda f: f.stat().st_mtime)
                 if timed_out.is_set():
                     self.add({"status": "failed", "message": "That took too long, so I stopped it. "
-                                                             "Click Generate to try again."})
+                                                             f"Click {button} to try again."})
                 elif pdfs:
+                    if self.on_done:
+                        try:
+                            self.on_done()  # e.g. re-check the roster so the "Roster updated" line clears now
+                        except Exception:
+                            pass
                     self.add({"status": "done", "pdf_url": f"/briefs/{pdfs[-1].name}", "summary": result_text})
                 else:
                     self.add({"status": "failed", "message": failure_message(result_text, stderr, final),
@@ -345,13 +358,23 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
                 return
             if url.path == "/api/run":
-                file = Path(body.get("file") or "").name or None
+                mode = body.get("mode", "brief")
+                if mode not in RUN_MODES:
+                    return self._json(400, {"message": "That isn't something the page can run."})
+                if mode == "update":
+                    payload = dashboard_payload(cfg.nf_home, date.today())
+                    if payload.get("empty") or payload.get("stale"):
+                        return self._json(409, {"message": "This week's brief hasn't been made yet. Click Generate instead."})
+                    if self.server.watch.state()["changes"] is None:
+                        return self._json(409, {"message": "Nobody new or changed since this week's brief."})
+                file = Path(body.get("file") or "").name or None if mode == "brief" else None
                 if file and not (roster_dir(cfg.nf_home) / file).is_file():
                     return self._json(400, {"message": f"{file} isn't in the inbox any more."})
                 with state_lock:
                     if state["run"] and not state["run"].done:
                         return self._json(409, {"message": "A brief is already being made. Give it a minute."})
-                    run = Run(cfg, file)
+                    watch = self.server.watch
+                    run = Run(cfg, file, mode, on_done=lambda: watch.check_once(time.time()))
                     state["run"] = state["runs"][run.id] = run
                 run.start()
                 return self._json(200, {"run_id": run.id})

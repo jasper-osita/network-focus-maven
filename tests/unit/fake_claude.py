@@ -34,6 +34,14 @@ if mode == "signed_out":
     emit({"type": "result", "subtype": "error", "is_error": True, "result": "Invalid API key · Please run /login"})
     sys.exit(1)
 tool("Bash", command='uv run "/p/scripts/load_roster.py" --roster ""')
+if mode == "update":
+    tool("Bash", command='uv run "/p/scripts/update_prep.py" --work "/w"')
+    tool("Bash", command='uv run "/p/scripts/apply_update.py" --work "/w"')
+    tool("Bash", command='uv run "/p/scripts/render_pdf.py" --work "/w"')
+    (home / "briefs").mkdir(parents=True, exist_ok=True)
+    (home / "briefs" / "2026-11-23-network-focus.pdf").write_bytes(b"%PDF-1.4 fake updated brief")
+    emit({"type": "result", "subtype": "success", "is_error": False, "result": "Brief updated: ..."})
+    sys.exit(0)
 for i, g in enumerate(["Series C", "CTO hire", "AI safety"], 1):
     tool("Agent", subagent_type="network-focus:goal-scout", description=f"Scout goal {i} {g}", prompt="...")
 tool("Agent", subagent_type="network-focus:fact-checker", description="Fact-check the brief", prompt="...")

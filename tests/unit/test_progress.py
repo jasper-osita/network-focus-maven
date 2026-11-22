@@ -46,3 +46,8 @@ def test_failure_message_max_turns():
 def test_failure_message_keeps_skill_explanation():
     text = "I couldn't make a brief I'm confident in this week: the quotes didn't match."
     assert failure_message(text, "", {"subtype": "success"}) == text
+
+
+def test_update_step_names():
+    assert progress_from_event(tool_event("Bash", command='uv run "/x/scripts/update_prep.py" --work W')) == "Looking at who's new"
+    assert progress_from_event(tool_event("Bash", command='uv run "/x/scripts/apply_update.py" --work W')) == "Placing new people"

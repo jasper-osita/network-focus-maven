@@ -287,3 +287,47 @@ def test_roster_changes_endpoint(server, brief_dict, roster_dict, warnings_dict)
 def test_index_has_roster_line(server):
     page = call(server, "GET", f"/?t={TOKEN}", cookie=False)[1].decode()
     assert 'id="rosterLine"' in page and 'id="updateBtn"' in page
+
+
+# ---- Update ----
+def put_current_snapshot(srv, brief_dict, roster_dict, warnings_dict, weeks_back=0):
+    from datetime import date, timedelta
+    from dashboard_data import week_of
+    brief_dict["week_of"] = (week_of(date.today()) - timedelta(days=7 * weeks_back)).isoformat()
+    put_snapshot(srv, brief_dict, roster_dict, warnings_dict)
+
+
+def stub_changes(srv):
+    import time
+    srv.watch.run_diff = lambda roster, snap: {"ok": True, "file": roster.name, "changed": [], "removed": [],
+                                               "new": [{"row_id": 26, "name": "Ana Ruiz", "company": "a16z"}]}
+    srv.watch.check_once(time.time() + 1000)
+
+
+def test_update_refused_when_nothing_changed(server, brief_dict, roster_dict, warnings_dict):
+    put_current_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    status, body, _ = call(server, "POST", "/api/run", body={"mode": "update"})
+    assert status == 409 and json.loads(body)["message"] == "Nobody new or changed since this week's brief."
+
+
+def test_update_refused_when_brief_is_stale(server, brief_dict, roster_dict, warnings_dict):
+    put_current_snapshot(server, brief_dict, roster_dict, warnings_dict, weeks_back=1)
+    stub_changes(server)
+    status, body, _ = call(server, "POST", "/api/run", body={"mode": "update"})
+    assert status == 409 and "Click Generate" in json.loads(body)["message"]
+
+
+def test_unknown_run_mode_400(server):
+    assert call(server, "POST", "/api/run", body={"mode": "delete-everything"})[0] == 400
+
+
+def test_update_run_uses_update_skill(server, monkeypatch, brief_dict, roster_dict, warnings_dict):
+    monkeypatch.setenv("FAKE_CLAUDE_MODE", "update")
+    put_current_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    stub_changes(server)
+    status, body, _ = call(server, "POST", "/api/run", body={"mode": "update"})
+    assert status == 200
+    events = sse(server, json.loads(body)["run_id"])
+    assert events[-1]["status"] == "done" and "Looking at who's new" in [e.get("step") for e in events]
+    argv = json.loads((server.cfg.nf_home / ".fake-argv.json").read_text(encoding="utf-8"))
+    assert argv[1] == "/network-focus:update"
