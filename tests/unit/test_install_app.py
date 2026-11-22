@@ -15,7 +15,7 @@ def home(tmp_path):
 
 
 def test_install_copies_and_configures(home):
-    r = install_app.install(PLUGIN, home, launch=False)
+    r = install_app.install(PLUGIN, home, launch=False, system="darwin")
     app = home / "Library" / "Application Support" / "Network Focus"
     assert r["app_dir"] == str(app)
     for f in ("server.py", "index.html", "progress.py", "dashboard_data.py", "scripts/check_setup.py", "scripts/nf_core/roster.py"):
@@ -27,15 +27,15 @@ def test_install_copies_and_configures(home):
 
 
 def test_token_survives_reinstall(home):
-    install_app.install(PLUGIN, home, launch=False)
+    install_app.install(PLUGIN, home, launch=False, system="darwin")
     app = home / "Library" / "Application Support" / "Network Focus"
     first = json.loads((app / "config.json").read_text())["token"]
-    install_app.install(PLUGIN, home, launch=False)
+    install_app.install(PLUGIN, home, launch=False, system="darwin")
     assert json.loads((app / "config.json").read_text())["token"] == first
 
 
 def test_plist_has_absolute_paths(home):
-    r = install_app.install(PLUGIN, home, launch=False)
+    r = install_app.install(PLUGIN, home, launch=False, system="darwin")
     p = plistlib.loads(open(r["plist"], "rb").read())
     assert p["Label"] == "com.networkfocus.app" and p["RunAtLoad"] and p["KeepAlive"]
     assert all(a.startswith("/") for a in p["ProgramArguments"] if "/" in a)
@@ -44,7 +44,7 @@ def test_plist_has_absolute_paths(home):
 
 
 def test_webloc_url(home):
-    r = install_app.install(PLUGIN, home, launch=False)
+    r = install_app.install(PLUGIN, home, launch=False, system="darwin")
     url = plistlib.loads(open(r["webloc"], "rb").read())["URL"]
     assert url.startswith("http://127.0.0.1:8765/?t=") and r["url"] == url
     assert r["webloc"].endswith("Desktop/Network Focus.webloc")
@@ -53,20 +53,20 @@ def test_webloc_url(home):
 def test_missing_claude_still_installs(home, monkeypatch):
     real = install_app.find_tool
     monkeypatch.setattr(install_app, "find_tool", lambda name, extra=(): None if name == "claude" else real(name, extra))
-    r = install_app.install(PLUGIN, home, launch=False)
+    r = install_app.install(PLUGIN, home, launch=False, system="darwin")
     assert any("Claude Code" in w for w in r["warnings"])
     assert (home / "Desktop" / "Network Focus.webloc").exists()
 
 
 def test_install_prepares_operator_folder(home):
-    install_app.install(PLUGIN, home, launch=False)
+    install_app.install(PLUGIN, home, launch=False, system="darwin")
     nf = home / "Documents" / "Network Focus"
     assert (nf / "inbox").is_dir() and (nf / "briefs").is_dir() and (nf / "goals.md").exists()
     assert (home / "Library" / "Application Support" / "Network Focus" / "templates" / "goals.md").exists()
 
 
 def test_background_permissions_scoped(home):
-    install_app.install(PLUGIN, home, launch=False)
+    install_app.install(PLUGIN, home, launch=False, system="darwin")
     cfg = json.loads((home / "Library" / "Application Support" / "Network Focus" / "config.json").read_text())
     tools = cfg["claude_args"][cfg["claude_args"].index("--allowedTools") + 1]
     rules = tools.split(",")

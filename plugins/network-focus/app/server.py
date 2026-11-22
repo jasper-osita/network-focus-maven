@@ -11,6 +11,7 @@ import argparse
 import hmac
 import json
 import os
+import signal
 import subprocess
 import tempfile
 import threading
@@ -53,6 +54,29 @@ class AppConfig:
                    scripts_dir=Path(d.get("scripts_dir", HERE / "scripts")), run_timeout=d.get("run_timeout", 900))
 
 
+def _start_tree(cmd: list[str], **kw) -> subprocess.Popen:
+    """Start `cmd` in its own process group so a hung run can be stopped with everything it started."""
+    if os.name == "nt":
+        kw["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    else:
+        kw["start_new_session"] = True
+    return subprocess.Popen(cmd, **kw)
+
+
+def _kill_tree(p: subprocess.Popen) -> None:
+    """Killing only the parent can leave a child holding the output pipe open (always so on Windows .cmd shims)."""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)], capture_output=True, timeout=10)
+        else:
+            os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+    except (OSError, subprocess.SubprocessError):
+        try:
+            p.kill()
+        except OSError:
+            pass
+
+
 class Run:
     def __init__(self, cfg: AppConfig, file: str | None):
         self.id, self.cfg, self.file = uuid.uuid4().hex[:12], cfg, file
@@ -73,10 +97,10 @@ class Run:
         result_text, stderr, last, timed_out = "", "", None, threading.Event()
         try:
             with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as err:  # a file, so a chatty stderr can't block stdout
-                p = subprocess.Popen([cfg.claude_path, "-p", prompt, *cfg.claude_args], cwd=cfg.nf_home,
+                p = _start_tree([cfg.claude_path, "-p", prompt, *cfg.claude_args], cwd=cfg.nf_home,
                                      env={**os.environ, "NF_HOME": str(cfg.nf_home)}, stdin=subprocess.DEVNULL,
                                      stdout=subprocess.PIPE, stderr=err, text=True, encoding="utf-8", errors="replace")
-                watchdog = threading.Timer(cfg.run_timeout, lambda: (timed_out.set(), p.kill()))
+                watchdog = threading.Timer(cfg.run_timeout, lambda: (timed_out.set(), _kill_tree(p)))
                 watchdog.daemon = True
                 watchdog.start()
                 try:

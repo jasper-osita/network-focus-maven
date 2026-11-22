@@ -107,7 +107,7 @@ def test_non_latin_names_survive_in_pdf(tmp_path, brief_dict, roster_dict, warni
         next(c for c in r["contacts"] if c["row_id"] == row)["name"] = name
     out = tmp_path / "b.pdf"
     render_pdf(b, r, warnings_dict, out)
-    text = subprocess.run(["pdftotext", str(out), "-"], capture_output=True, text=True, encoding="utf-8").stdout
+    text = subprocess.run(["pdftotext", "-enc", "UTF-8", str(out), "-"], capture_output=True, text=True, encoding="utf-8").stdout
     assert "李伟" in text and "Łukasz" in text and "Дмитрий" in text
 
 
