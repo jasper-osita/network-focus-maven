@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 LABEL = "com.networkfocus.app"
-APP_FILES = ("server.py", "index.html", "progress.py")
+APP_FILES = ("server.py", "index.html", "progress.py", "dashboard_data.py")
 
 
 def background_allowed_tools(nf_home: Path, plugin_root: Path) -> str:

@@ -18,7 +18,7 @@ def test_install_copies_and_configures(home):
     r = install_app.install(PLUGIN, home, launch=False)
     app = home / "Library" / "Application Support" / "Network Focus"
     assert r["app_dir"] == str(app)
-    for f in ("server.py", "index.html", "progress.py", "scripts/check_setup.py", "scripts/nf_core/roster.py"):
+    for f in ("server.py", "index.html", "progress.py", "dashboard_data.py", "scripts/check_setup.py", "scripts/nf_core/roster.py"):
         assert (app / f).exists(), f
     cfg = json.loads((app / "config.json").read_text())
     assert len(cfg["token"]) >= 32 and cfg["port"] == 8765
