@@ -178,6 +178,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--case", default="")
     ap.add_argument("--grade", action="store_true")
+    ap.add_argument("--page-tools", action="store_true",
+                    help="allow only what the installed page allows (its background permission rules)")
     a = ap.parse_args()
     cases = [CASES / a.case] if a.case else sorted(p for p in CASES.iterdir() if p.is_dir())
     rows, failed = [], 0
@@ -186,8 +188,13 @@ def main() -> int:
             is_update = json.loads((case / "setup.json").read_text()).get("kind") == "update"
             home = (prepare_update if is_update else prepare)(case, Path(tmp))
             t0 = time.time()
+            extra = list(HEADLESS)
+            if a.page_tools:
+                sys.path.insert(0, str(PLUGIN / "app"))
+                from install_app import background_allowed_tools
+                extra[extra.index("--allowedTools") + 1] = background_allowed_tools(home, PLUGIN)
             out = claude("/network-focus:update" if is_update else "/network-focus:brief",
-                         ["--plugin-dir", str(PLUGIN), *HEADLESS],
+                         ["--plugin-dir", str(PLUGIN), *extra],
                          {**os.environ, "NF_HOME": str(home)}, log=RESULTS / "logs" / f"{case.name}.jsonl")
             secs = round(time.time() - t0)
             fails = (check_update if is_update else check)(case, home, out)
