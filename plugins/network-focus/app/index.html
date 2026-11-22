@@ -46,7 +46,12 @@
           font-size: 13px; font-weight: 600; margin-left: 8px; vertical-align: middle; }
   .role { color: var(--muted); margin-bottom: 16px; }
   .do { font-size: 21px; line-height: 1.38; margin: 0 0 8px; }
-  .why { color: var(--muted); margin: 0 0 20px; }
+  .why { color: var(--muted); margin: 0 0 16px; }
+  .msg { margin: 0 0 20px; padding: 12px 16px; border-left: 3px solid var(--line); background: var(--bg); border-radius: 0 8px 8px 0;
+         font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
+  .msg-label { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .peek summary { color: var(--gold); cursor: pointer; font-size: 13px; margin-top: 2px; }
+  .peek p { margin: 6px 0 0; font-size: 14px; color: var(--ink); white-space: pre-wrap; }
   .primary { background: var(--navy); color: var(--on-navy); border: 0; padding: 12px 20px; font-weight: 600; }
   .ghost { background: var(--card); color: var(--navy); border: 1px solid var(--line); padding: 12px 18px; margin-left: 8px; }
   .ghost.on { border-color: var(--ok); color: var(--ok); }
@@ -117,6 +122,7 @@
       <div class="role" id="heroRole"></div>
       <p class="do" id="heroMove"></p>
       <p class="why" id="heroWhy"></p>
+      <div id="heroMessageWrap"><div class="msg-label">Ready-to-send message</div><blockquote class="msg" id="heroMessage"></blockquote></div>
       <button class="primary" id="heroCopy">Copy message</button><button class="ghost" id="heroDone">Mark done</button>
     </div>
     <div class="grid">
@@ -207,7 +213,8 @@ function itemRow(p) {
   const sub = p.days !== undefined ? `${esc(p.role_company)} · ${esc(p.days)} days quiet` : esc(p.role_company);
   return `<div class="item ${p.done ? "done" : ""}">
     <input type="checkbox" data-row="${p.row_id}" ${p.done ? "checked" : ""} aria-label="Done: ${esc(p.name)}">
-    <div class="txt"><b>${esc(p.name)}</b> · ${sub}<small>${esc(p.move)}</small></div>
+    <div class="txt"><b>${esc(p.name)}</b> · ${sub}<small>${esc(p.move)}</small>
+      ${p.message ? `<details class="peek"><summary>Preview message</summary><p>${esc(p.message)}</p></details>` : ""}</div>
     ${p.message ? `<button class="copy" data-copy="${p.row_id}">Copy</button>` : ""}</div>`;
 }
 
@@ -229,6 +236,8 @@ function renderDashboard() {
   $("heroMove").textContent = t.move;
   $("heroWhy").textContent = t.why;
   $("heroCopy").hidden = !t.message;
+  $("heroMessageWrap").hidden = !t.message;
+  $("heroMessage").textContent = t.message;
   $("heroDone").textContent = t.done ? "Done ✓" : "Mark done";
   $("heroDone").classList.toggle("on", t.done);
 
@@ -259,7 +268,7 @@ document.addEventListener("change", (e) => {
 async function toggle(rowId, done) {
   try {
     const r = await fetch("/api/done", { method: "POST", headers: { "Content-Type": "application/json" },
-                                          body: JSON.stringify({ row_id: rowId, done }) });
+                                          body: JSON.stringify({ row_id: rowId, done, week_of: dash.week_of }) });
     if (!r.ok) return loadDashboard();
     const j = await r.json();
     const p = everyone().find((x) => x.row_id === rowId);

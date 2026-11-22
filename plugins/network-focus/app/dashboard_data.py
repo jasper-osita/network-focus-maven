@@ -36,12 +36,22 @@ def load_progress(nf_home: Path) -> dict:
         return {}
 
 
-def set_done(nf_home: Path, week: str, row_id: int, done: bool) -> None:
-    """Record a move as done (or not). Written atomically so a crash can't leave a half-written file."""
+def _norm(name) -> str:
+    return " ".join(str(name).split()).casefold()
+
+
+def _marked(marks: dict, row_id: int, name: str) -> bool:
+    """A mark counts only for the same person: rows shift if the spreadsheet is edited and re-run mid-week."""
+    stored = marks.get(str(row_id))
+    return isinstance(stored, str) and _norm(stored) == _norm(name)
+
+
+def set_done(nf_home: Path, week: str, row_id: int, done: bool, name: str) -> None:
+    """Record a move as done (or not), keyed by row and name. Written atomically so a crash can't half-write it."""
     data = load_progress(nf_home)
     week_marks = data.get(week) if isinstance(data.get(week), dict) else {}
     if done:
-        week_marks[str(row_id)] = True
+        week_marks[str(row_id)] = name
     else:
         week_marks.pop(str(row_id), None)
     data[week] = week_marks
@@ -59,8 +69,9 @@ def pick_ids(snapshot: dict) -> set[int]:
 def _score(snapshot: dict, progress: dict) -> dict:
     marks = progress.get(snapshot["week_of"], {})
     marks = marks if isinstance(marks, dict) else {}
-    picks = pick_ids(snapshot)
-    return {"done": sum(1 for r in picks if marks.get(str(r))), "total": len(picks)}
+    b = snapshot["brief"]
+    picks = b.get("focus", []) + b.get("dormant", [])
+    return {"done": sum(1 for x in picks if _marked(marks, x["row_id"], x.get("name", ""))), "total": len(picks)}
 
 
 def _person(item: dict, snapshot: dict, marks: dict) -> dict:
@@ -74,7 +85,7 @@ def _person(item: dict, snapshot: dict, marks: dict) -> dict:
         "move": item.get("move", ""),
         "why": item.get("why", ""),
         "message": item.get("message", ""),
-        "done": bool(marks.get(str(item["row_id"]))),
+        "done": _marked(marks, item["row_id"], item.get("name") or row.get("name", "")),
     }
     if "days_since_contact" in item:
         out["days"] = item["days_since_contact"]

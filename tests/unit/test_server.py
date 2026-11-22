@@ -181,14 +181,16 @@ def test_dashboard_requires_token(server):
 
 def test_done_updates_progress(server, brief_dict, roster_dict, warnings_dict):
     put_snapshot(server, brief_dict, roster_dict, warnings_dict)
-    status, body, _ = call(server, "POST", "/api/done", body={"row_id": 3, "done": True})
+    status, body, _ = call(server, "POST", "/api/done", body={"row_id": 3, "done": True, "week_of": "2026-11-23"})
     assert status == 200 and json.loads(body)["progress"]["done"] == 1
     assert json.loads(call(server, "GET", "/api/dashboard")[1])["top"]["done"] is True
 
 
 def test_done_rejects_unknown_row(server, brief_dict, roster_dict, warnings_dict):
     put_snapshot(server, brief_dict, roster_dict, warnings_dict)
-    assert call(server, "POST", "/api/done", body={"row_id": 99, "done": True})[0] == 400
+    assert call(server, "POST", "/api/done", body={"row_id": 99, "done": True, "week_of": "2026-11-23"})[0] == 400
+    assert call(server, "POST", "/api/done", body={"row_id": 3, "done": True})[0] == 400
+    assert call(server, "POST", "/api/done", body={"row_id": 3, "done": True, "week_of": "2026-11-16"})[0] == 409
     assert call(server, "POST", "/api/done", body={"row_id": "3", "done": "yes"})[0] == 400
     assert call(server, "POST", "/api/done", body=b"{not json", headers={"Content-Type": "application/json"})[0] == 400
 
@@ -204,3 +206,4 @@ def test_index_has_both_tabs(server):
     page = body.decode()
     assert status == 200 and "This week" in page and "Make the brief" in page
     assert 'id="ring"' in page and "Copy message" in page and "Generate this week" in page
+    assert 'id="heroMessage"' in page and "Preview" in page

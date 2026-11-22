@@ -15,7 +15,12 @@ MIN_QUOTE_WORDS = 3
 MIN_MOVE_WORDS = 8
 MESSAGE_MIN_WORDS = 20
 MESSAGE_MAX_WORDS = 120
-PLACEHOLDERS = ("[", "{", "<", "todo", "lorem")
+PLACEHOLDER_CHARS = ("[", "{", "<")
+_PLACEHOLDER_WORDS = re.compile(r"\b(?:todo|tbd|lorem)\b", re.I)
+_ATTACHMENT = re.compile(r"\b(?:attached|attaching|attachment|enclosed)\b", re.I)
+# In messages only "N days ago/since" or "been N days" states a fact; "in the next 2 days" doesn't.
+_MSG_DAYS = re.compile(r"(\d+)\s+days?\s+(?:ago|since)\b|\bbeen\s+(\d+)\s+days?\b", re.I)
+HONORIFICS = {"dr", "mr", "mrs", "ms", "mx", "prof", "sir", "dame"}
 MOVE_WORDS = ("email", "call", "coffee", "meeting", "intro", "message", "note", "lunch", "dinner",
               "reply", "send", "ask")
 _DAYS = re.compile(r"(\d+)\s+days?\b")
@@ -55,6 +60,15 @@ def _check_person(item: dict, where: str, rows: dict, problems: list[Problem], e
     return row
 
 
+def first_name(name: str) -> str:
+    """'Diana Chen', 'Dr. Diana Chen' and 'Chen, Diana' all give 'Diana'."""
+    if "," in name:
+        name = name.split(",", 1)[1]
+    tokens = [t.strip(".,") for t in name.split()]
+    tokens = [t for t in tokens if t and t.casefold() not in HONORIFICS]
+    return tokens[0] if tokens else name.strip()
+
+
 def _check_move_and_numbers(item: dict, row: dict, where: str, problems: list[Problem]) -> None:
     words = re.findall(r"[a-z]+", item["move"].lower())
     if len(words) < MIN_MOVE_WORDS or not any(w.startswith(MOVE_WORDS) for w in words):
@@ -62,21 +76,25 @@ def _check_move_and_numbers(item: dict, row: dict, where: str, problems: list[Pr
                                 f"{where}: the move '{item['move']}' isn't specific. Say what to do, through which "
                                 "channel (email, call, coffee, intro...), and about what."))
     message = item.get("message", "")
-    for field in ("why", "message"):
-        for n in _DAYS.findall(item.get(field, "")):
-            if row.get("days_since_contact") is None or int(n) != row["days_since_contact"]:
-                problems.append(Problem("NUMBER_MISMATCH", where,
-                                        f"{where}.{field}: says {n} days, but {row['name']}'s row says "
-                                        f"{row.get('days_since_contact')} days."))
+    stated = [("why", n) for n in _DAYS.findall(item.get("why", ""))]
+    stated += [("message", a or b) for a, b in _MSG_DAYS.findall(message)]
+    for field, n in stated:
+        if row.get("days_since_contact") is None or int(n) != row["days_since_contact"]:
+            problems.append(Problem("NUMBER_MISMATCH", where,
+                                    f"{where}.{field}: says {n} days, but {row['name']}'s row says "
+                                    f"{row.get('days_since_contact')} days."))
     n_words = len(message.split())
     if not MESSAGE_MIN_WORDS <= n_words <= MESSAGE_MAX_WORDS:
         problems.append(Problem("MESSAGE_LENGTH", where,
                                 f"{where}: the message is {n_words} words; write {MESSAGE_MIN_WORDS}-{MESSAGE_MAX_WORDS} "
                                 "words she can paste and send."))
-    first = row["name"].split()[0]
+    first = first_name(row["name"])
     if first.casefold() not in message.casefold():
         problems.append(Problem("MESSAGE_NAME", where, f"{where}: the message should greet {first} by name."))
-    if any(ph in message.casefold() for ph in PLACEHOLDERS):
+    if _ATTACHMENT.search(message):
+        problems.append(Problem("MESSAGE_ATTACHMENT", where,
+                                f"{where}: don't say anything is attached. She pastes this text; say she'll send it."))
+    if any(ch in message for ch in PLACEHOLDER_CHARS) or _PLACEHOLDER_WORDS.search(message):
         problems.append(Problem("MESSAGE_PLACEHOLDER", where,
                                 f"{where}: the message has a placeholder or markup ([, {{, <, TODO). "
                                 "Write the finished text."))

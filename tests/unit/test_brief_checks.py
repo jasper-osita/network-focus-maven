@@ -197,3 +197,25 @@ def test_message_rules(brief, roster):
     assert codes(validate_brief(b, roster)) == ["NUMBER_MISMATCH"]
     b = copy.deepcopy(brief); del b["dormant"][1]["message"]
     assert "SCHEMA" in codes(validate_brief(b, roster))
+
+
+def test_message_checks_allow_normal_text(brief, roster):
+    b = copy.deepcopy(brief)
+    b["focus"][0]["message"] += " Could we talk in the next 2 days about a 90 day plan? I loved your post about Todoist."
+    assert validate_brief(b, roster) == []
+    b["focus"][0]["message"] += " TODO: fill in"
+    assert codes(validate_brief(b, roster)) == ["MESSAGE_PLACEHOLDER"]
+
+
+def test_first_name_handles_titles_and_commas(brief, roster):
+    for written in ("Dr. Diana Chen", "Chen, Diana"):
+        r, b = copy.deepcopy(roster), copy.deepcopy(brief)
+        next(c for c in r["contacts"] if c["row_id"] == 3)["name"] = written
+        b["focus"][0]["name"] = written
+        assert validate_brief(b, r) == [], written
+
+
+def test_message_must_not_claim_attachments(brief, roster):
+    b = copy.deepcopy(brief)
+    b["focus"][1]["message"] += " I've attached the full deck here."
+    assert codes(validate_brief(b, roster)) == ["MESSAGE_ATTACHMENT"]

@@ -199,16 +199,18 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
             return self._send(404, b"not found", "text/plain")
 
         def _done(self, body: dict):
-            row_id, done = body.get("row_id"), body.get("done")
-            if type(row_id) is not int or type(done) is not bool:
-                return self._json(400, {"message": "Expected a row number and true/false."})
+            row_id, done, week = body.get("row_id"), body.get("done"), body.get("week_of")
+            if type(row_id) is not int or type(done) is not bool or not isinstance(week, str):
+                return self._json(400, {"message": "Expected a row number, true/false and the week."})
             payload = dashboard_payload(cfg.nf_home, date.today())
             if payload.get("empty"):
                 return self._json(400, {"message": "There's no brief yet."})
-            picks = {p["row_id"] for p in [payload["top"], *payload["others"], *payload["dormant"]]}
+            if week != payload["week_of"]:
+                return self._json(409, {"message": "A newer brief has been made. Reload the page."})
+            picks = {p["row_id"]: p["name"] for p in [payload["top"], *payload["others"], *payload["dormant"]]}
             if row_id not in picks:
                 return self._json(400, {"message": "That person isn't in this week's brief any more. Reload the page."})
-            set_done(cfg.nf_home, payload["week_of"], row_id, done)
+            set_done(cfg.nf_home, payload["week_of"], row_id, done, picks[row_id])
             return self._json(200, {"progress": dashboard_payload(cfg.nf_home, date.today())["progress"]})
 
         def _events(self, run_id: str):
