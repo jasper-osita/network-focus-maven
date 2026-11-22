@@ -1,5 +1,6 @@
 import json
 import plistlib
+import sys
 
 import pytest
 
@@ -7,6 +8,7 @@ import install_app
 from conftest import ROOT
 
 PLUGIN = ROOT / "plugins" / "network-focus"
+posix_paths = pytest.mark.skipif(sys.platform == "win32", reason="checks the Mac layout's POSIX paths; runs on macOS CI")
 
 
 @pytest.fixture
@@ -34,6 +36,7 @@ def test_token_survives_reinstall(home):
     assert json.loads((app / "config.json").read_text())["token"] == first
 
 
+@posix_paths
 def test_plist_has_absolute_paths(home):
     r = install_app.install(PLUGIN, home, launch=False, system="darwin")
     p = plistlib.loads(open(r["plist"], "rb").read())
@@ -43,6 +46,7 @@ def test_plist_has_absolute_paths(home):
     assert "/usr/bin" in p["EnvironmentVariables"]["PATH"]
 
 
+@posix_paths
 def test_webloc_url(home):
     r = install_app.install(PLUGIN, home, launch=False, system="darwin")
     url = plistlib.loads(open(r["webloc"], "rb").read())["URL"]
@@ -65,6 +69,7 @@ def test_install_prepares_operator_folder(home):
     assert (home / "Library" / "Application Support" / "Network Focus" / "templates" / "goals.md").exists()
 
 
+@posix_paths
 def test_background_permissions_scoped(home):
     install_app.install(PLUGIN, home, launch=False, system="darwin")
     cfg = json.loads((home / "Library" / "Application Support" / "Network Focus" / "config.json").read_text())
