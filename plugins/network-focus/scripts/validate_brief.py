@@ -17,10 +17,11 @@ from nf_core.brief_checks import cited_rows, validate_brief, validate_scout
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["brief", "scout", "cited-rows"])
+    ap.add_argument("mode", choices=["brief", "scout", "cited-rows", "update"])
     ap.add_argument("file")
     ap.add_argument("--roster", required=True)
     ap.add_argument("--out", default="")
+    ap.add_argument("--input", default="", help="update mode: WORK/update-input.json")
     a = ap.parse_args(argv)
     try:
         doc = json.loads(Path(a.file).read_text(encoding="utf-8"))
@@ -35,7 +36,11 @@ def main(argv=None) -> int:
         print(json.dumps({"ok": True, "problems": [], "out": str(out)}))
         return 0
     try:
-        problems = (validate_brief if a.mode == "brief" else validate_scout)(doc, roster)
+        if a.mode == "update":
+            from nf_core.update import validate_update
+            problems = validate_update(doc, roster, json.loads(Path(a.input).read_text(encoding="utf-8")))
+        else:
+            problems = (validate_brief if a.mode == "brief" else validate_scout)(doc, roster)
     except (KeyError, TypeError) as e:
         print(json.dumps({"ok": False, "problems": [{"code": "SCHEMA", "where": a.file,
                                                      "message": f"Unexpected shape: {e}"}]}))

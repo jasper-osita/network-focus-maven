@@ -1,0 +1,39 @@
+{
+  "title": "Mid-week Update: the model's judgment on each new or changed person",
+  "type": "object",
+  "required": ["people"],
+  "properties": {
+    "people": {
+      "type": "array",
+      "description": "Every person listed in update-input.json `people`, exactly once, best candidate first",
+      "items": {
+        "type": "object",
+        "required": ["row_id", "name", "tied_to_main_goal", "evidence", "goal_link"],
+        "properties": {
+          "row_id": {"type": "integer"},
+          "name": {"type": "string", "minLength": 1},
+          "tied_to_main_goal": {"type": "boolean", "description": "True only when the row shows a link to the main goal"},
+          "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1},
+                       "description": "1-2 quotes copied word for word from this person's text"},
+          "goal_link": {"type": "string", "description": "How they serve the main goal; required (non-empty) when tied_to_main_goal is true"},
+          "beats": {"type": "integer", "description": "Row id of the open pick (from open_slots) this person outranks; leave out if none"},
+          "pick": {
+            "type": "object",
+            "description": "Only for tied people who beat an open pick or can fill an empty slot. Same rules as a focus pick.",
+            "required": ["goals", "why", "move", "risk", "evidence", "confidence", "message"],
+            "properties": {
+              "goals": {"type": "array", "minItems": 1, "items": {"type": "integer"}, "description": "Must include the main goal id"},
+              "why": {"type": "string", "minLength": 1},
+              "move": {"type": "string", "minLength": 1},
+              "risk": {"type": "string", "minLength": 1},
+              "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+              "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+              "message": {"type": "string", "minLength": 1}
+            }
+          },
+          "consider": {"type": "string", "description": "One sentence for anyone without a pick: why they're worth considering next week"}
+        }
+      }
+    }
+  }
+}
