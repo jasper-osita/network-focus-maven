@@ -142,6 +142,23 @@ def setup_drive_folder(nf_home: Path, home: Path, system: str, drive_roots: list
     return folder
 
 
+def relaunch_mac(domain: str, plist: Path, runner=subprocess.run, sleep=None) -> bool:
+    """Restart the page under launchd. On a re-install the old job lingers for a moment after `bootout`, and
+    `bootstrap` fails ("5: Input/output error") until it's gone, which left no page running. Wait, then retry."""
+    import time
+    sleep = sleep or time.sleep
+    runner(["launchctl", "bootout", f"{domain}/{LABEL}"], capture_output=True)
+    for _ in range(10):
+        if runner(["launchctl", "print", f"{domain}/{LABEL}"], capture_output=True).returncode != 0:
+            break
+        sleep(0.5)
+    for _ in range(4):
+        if runner(["launchctl", "bootstrap", domain, str(plist)], capture_output=True, text=True).returncode == 0:
+            return True
+        sleep(1)
+    return False
+
+
 def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True, system: str | None = None,
             nf_home: Path | None = None, drive_roots: list[Path] | None = None) -> dict:
     windows = (system or sys.platform) == "win32"
@@ -209,10 +226,7 @@ def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True
     webloc.write_bytes(webloc_xml(url))
 
     if launch:
-        domain = f"gui/{os.getuid()}"
-        subprocess.run(["launchctl", "bootout", f"{domain}/{LABEL}"], capture_output=True)
-        r = subprocess.run(["launchctl", "bootstrap", domain, str(plist)], capture_output=True, text=True)
-        if r.returncode != 0 or not _page_answers(port):
+        if not relaunch_mac(f"gui/{os.getuid()}", plist) or not _page_answers(port):
             warnings.append("The page didn't start straight away. Restart the Mac and it will start on login; "
                             "if it still won't open, run /network-focus:setup-app again.")
     return {"url": url, "app_dir": str(app_dir), "plist": str(plist), "webloc": str(webloc),

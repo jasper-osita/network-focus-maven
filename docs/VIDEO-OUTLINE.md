@@ -4,7 +4,8 @@ These are talking points, not a script. Say them in your own words, and type liv
 
 ## Before you hit record
 
-- [ ] On your computer, Network Focus is installed with the one-click installer from `Install Network Focus.zip` (sign in to Claude when asked), and **Check setup** on the page shows only ✅ and ℹ️.
+- [ ] On your computer, Network Focus is installed with the one-click installer from `Install Network Focus.zip` (sign in to Claude when asked). Do one full rehearsal run so you know it works.
+- [ ] A Terminal window is open in the Network Focus folder with Claude Code running: `cd ~/Documents/Network\ Focus && claude`. The CEO dashboard artifact (your claude.ai link) is open in a browser tab, with **Reset the preview** clicked.
 - [ ] A fresh copy of `network_roster_terragrid.xlsx` is on the Desktop. A second copy, `broken.xlsx`, is open in **Excel**, ready for the failure demo. Numbers would save it as .numbers; if you only have Numbers, use File → Export To → Excel.
 - [ ] VS Code is open on the repo with these tabs: `docs/PRD.md`, `skills/brief/SKILL.md`, `agents/goal-scout.md`, `scripts/nf_core/brief_checks.py`, `scripts/nf_core/checks.py`, `scripts/nf_core/roster.py`, `tests/evals/results/` (latest).
 - [ ] Notifications are off (Focus mode), the font size is bumped, and the browser shows only the Network Focus page.
@@ -18,9 +19,9 @@ These are talking points, not a script. Say them in your own words, and type liv
 ## 2. Live demo on the real spreadsheet (3–4 min)
 
 - Briefly show the spreadsheet. Point at two traps: Marcus Wei's note "intro from Patrick at Greylock", and the goals' "warm intro to a16z".
-- Double-click **Network Focus** on the Desktop. On **Make the brief**, drag the spreadsheet in and click **Generate**.
-- **While it runs (about 2–3 min), narrate the steps as they tick:** "Checking the data" is pure Python. "Reviewing Goal 1/2/3" is three sub-agents running in parallel. "Fact-checking" is a separate Haiku agent that only sees the cited rows. Then "Making the PDF". Don't cut the wait; it shows the run is real.
-- When it finishes, the page switches to **This week**, the CEO dashboard. Point at the #1 card first: "one person, one move, one click". Click **Copy message** and paste it into a note to show the draft is real and grounded. Tick **Mark done** and watch the ring move.
+- In the Claude Code window, type `/network-focus:brief ` and drag the spreadsheet in from Finder, then press Enter. (If the local page is running, clicking **Generate** there runs the same skill.)
+- **While it runs (about 2–3 min), narrate the steps as they appear:** "Checking the data" is pure Python. "Reviewing Goal 1/2/3" is three sub-agents running in parallel. "Fact-checking" is a separate Haiku agent that only sees the cited rows. Then "Making the PDF". Don't cut the wait; it shows the run is real.
+- When it says **Brief ready**, open the PDF (below). Then switch to the **CEO dashboard artifact**: "this is what the CEO sees". Point at the #1 card first: "one person, one move, one click". Click **Copy message**, tick **Mark done** and watch the rings move. Click **Update this week's brief** to show a mid-week Series C newcomer taking the weakest open slot. Say plainly that the artifact is a preview with this week's brief, not live.
 - Then open the PDF and walk through it: the picks and why, then the decoys it skipped (James Park: strength 5, best friend, no goal link; Jensen Huang: famous, no relationship). Finish on **Check before the meeting** (a16z, Patrick, ARC and the academic contradiction) and the extra issues the scouts spotted (Paul's email vs LinkedIn, David Liu's "ex-colleague").
 
 - **If there's time (1 min):** add a Series C investor row to the roster in Google Drive. Within a few minutes the page says *Roster updated · New: …*. Click **Update**: the newcomer takes the weakest open slot with a *New · Raise Series C* chip, and the bumped pick moves to *Worth considering*. Point at the goal rings.

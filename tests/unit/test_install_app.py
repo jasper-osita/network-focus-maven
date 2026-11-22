@@ -178,3 +178,33 @@ def test_install_windows_drive_root(home, tmp_path):
     r = install_app.install(PLUGIN, home, launch=False, system="win32", drive_roots=[g])
     assert r["roster_folder"] == str(g / "My Drive" / "Network Focus")
     assert (g / "My Drive" / "Network Focus").is_dir()
+
+
+# ---- relaunching the page on a Mac re-install ----
+class FakeLaunchctl:
+    """Stands in for launchctl: the old job lingers for a moment after bootout, and bootstrap fails until it's gone."""
+    def __init__(self, linger=2, fail_bootstraps=2):
+        self.calls, self.linger, self.fail = [], linger, fail_bootstraps
+
+    def __call__(self, cmd, **kw):
+        import subprocess
+        self.calls.append(cmd[1])
+        if cmd[1] == "print":
+            self.linger -= 1
+            return subprocess.CompletedProcess(cmd, 0 if self.linger >= 0 else 113, "", "")
+        if cmd[1] == "bootstrap":
+            self.fail -= 1
+            return subprocess.CompletedProcess(cmd, 5 if self.fail >= 0 else 0, "", "Bootstrap failed: 5: Input/output error")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+
+def test_relaunch_waits_for_old_page_and_retries(tmp_path):
+    fake = FakeLaunchctl(linger=2, fail_bootstraps=2)
+    assert install_app.relaunch_mac("gui/501", tmp_path / "x.plist", runner=fake, sleep=lambda s: None) is True
+    assert fake.calls[0] == "bootout" and fake.calls.count("print") == 3 and fake.calls.count("bootstrap") == 3
+
+
+def test_relaunch_gives_up_after_retries(tmp_path):
+    fake = FakeLaunchctl(linger=0, fail_bootstraps=99)
+    assert install_app.relaunch_mac("gui/501", tmp_path / "x.plist", runner=fake, sleep=lambda s: None) is False
+    assert fake.calls.count("bootstrap") == 4
