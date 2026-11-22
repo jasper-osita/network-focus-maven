@@ -18,9 +18,10 @@ These are talking points, not a script. Say them in your own words, and type liv
 ## 2. Live demo on the real spreadsheet (3–4 min)
 
 - Briefly show the spreadsheet. Point at two traps: Marcus Wei's note "intro from Patrick at Greylock", and the goals' "warm intro to a16z".
-- Double-click **Network Focus** on the Desktop. Drag the spreadsheet in and click **Generate**.
+- Double-click **Network Focus** on the Desktop. On **Make the brief**, drag the spreadsheet in and click **Generate**.
 - **While it runs (about 2–3 min), narrate the steps as they tick:** "Checking the data" is pure Python. "Reviewing Goal 1/2/3" is three sub-agents running in parallel. "Fact-checking" is a separate Haiku agent that only sees the cited rows. Then "Making the PDF". Don't cut the wait; it shows the run is real.
-- Open the PDF and walk through it: the picks and why, then the decoys it skipped (James Park: strength 5, best friend, no goal link; Jensen Huang: famous, no relationship). Finish on **Check before the meeting** (a16z, Patrick, ARC and the academic contradiction) and the extra issues the scouts spotted (Paul's email vs LinkedIn, David Liu's "ex-colleague").
+- When it finishes, the page switches to **This week**, the CEO dashboard. Point at the #1 card first: "one person, one move, one click". Click **Copy message** and paste it into a note to show the draft is real and grounded. Tick **Mark done** and watch the ring move.
+- Then open the PDF and walk through it: the picks and why, then the decoys it skipped (James Park: strength 5, best friend, no goal link; Jensen Huang: famous, no relationship). Finish on **Check before the meeting** (a16z, Patrick, ARC and the academic contradiction) and the extra issues the scouts spotted (Paul's email vs LinkedIn, David Liu's "ex-colleague").
 
 ## 3. Architecture with code visible (2–3 min)
 
@@ -28,7 +29,8 @@ These are talking points, not a script. Say them in your own words, and type liv
 - SKILL.md: `allowed-tools` pre-approves only what the skill needs (Read/Write/Edit, `uv run`, the agents), so there are no permission prompts for her. `${CLAUDE_PLUGIN_ROOT}` locates the scripts. Background runs from the page are tighter still: `install_app.py` limits them to her folder and the plugin's own scripts.
 - `schemas/brief.json`: one contract that the agents follow and the validator enforces.
 - `app/server.py`: why a **local** page instead of a cloud app. Her data stays on her Mac, it uses her Claude login, and there's no server to break. Show the guards: 127.0.0.1 only, Host/Origin checks, a token, one run at a time.
-- The test set: open the latest `tests/evals/results/*.md`. Six real end-to-end cases plus an independent grader, alongside 109 unit tests.
+- The dashboard: `nf_core/snapshot.py` saves a JSON copy of each brief, and `app/dashboard_data.py` turns it into the #1, the checklist and the ring. The messages are checked by code (length, name, no placeholders, numbers) and by the fact-checker.
+- The test set: open the latest `tests/evals/results/*.md`. Six real end-to-end cases plus an independent grader, alongside 129 unit tests.
 
 ## 4. A failure mode, live, with the code (2–3 min)
 

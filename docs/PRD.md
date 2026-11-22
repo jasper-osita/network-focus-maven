@@ -22,7 +22,7 @@ The "Check before the meeting" box is filled from `warnings.json`, which the cod
 
 ## 3. Architecture decisions
 
-**Code handles facts, the model handles judgment.** Loading the file, the 60-day rule, name matching, stale-file detection and quote checking are deterministic, unit-tested Python (109 tests). Deciding who matters this week and what to say is left to the model.
+**Code handles facts, the model handles judgment.** Loading the file, the 60-day rule, name matching, stale-file detection and quote checking are deterministic, unit-tested Python (129 tests). Deciding who matters this week and what to say is left to the model.
 
 ```
 load_roster.py → goal-scout × N (parallel) → main skill picks → validate_brief.py → fact-checker → validate → render_pdf.py
@@ -37,7 +37,7 @@ load_roster.py → goal-scout × N (parallel) → main skill picks → validate_
 | Structured output | JSON Schema files in `schemas/` are the single contract. Agents are told to follow them, and the validator enforces them. |
 | Grounding | Each evidence quote must appear word-for-word in that contact's row. "N days" in the text must match the data. Moves need a channel and a specific ask. |
 | Packaging | A plugin in a GitHub repo that is also its own marketplace: install in two steps, updates from the same repo. |
-| Where she runs it | A local one-button web page (Python standard library, local-only, token-protected; background runs may only touch her folder and the plugin's scripts) that runs the same skill with `claude -p`, with the Claude desktop app as backup. **Cloud web app rejected:** it needs hosting, an API key and a login, it puts the CEO's private notes on a server, and she couldn't fix it herself. |
+| Where she runs it | A local one-button web page (Python standard library, local-only, token-protected; background runs may only touch her folder and the plugin's scripts) that runs the same skill with `claude -p`, with the Claude desktop app as backup. It opens on a **CEO dashboard**: the #1 pick with a ready-to-send message (checked like every other claim), a checklist and a progress ring. **Cloud web app rejected:** it needs hosting, an API key and a login, it puts the CEO's private notes on a server, and she couldn't fix it herself. |
 
 ## 4. Data sourcing strategy (production)
 

@@ -16,8 +16,8 @@ Every Monday, Network Focus turns the CEO's network spreadsheet and goals into a
 
 ## Every Monday (2 minutes, plus 3 minutes of waiting)
 
-1. Double-click **Network Focus** on the Desktop. It opens in your web browser. Drag this week's spreadsheet (.xlsx or .csv) into the dashed box. Its name appears in the list.
-2. Click **Generate this week's brief**. Leave the window open while the steps tick off. Then click **Open PDF** and go through *Check before the meeting* with the CEO.
+1. Double-click **Network Focus** on the Desktop. On **Make the brief**, drag in this week's spreadsheet and click **Generate this week's brief**. Leave the window open while the steps tick off.
+2. It switches to **This week**: the CEO's #1 person with **Copy message** (a ready-to-send draft) and **Mark done**, then a checklist. Tick moves as she makes them. **Open PDF** gives the printable brief.
 
 *No page?* In the Claude app's **Code** tab, with the Network Focus folder open, type **make this week's network brief**.
 *Each quarter:* open *Documents › Network Focus › goals.md* with TextEdit (right-click › Open With). Change only the text after each colon, and keep lines like `## Goal 1:` as they are.

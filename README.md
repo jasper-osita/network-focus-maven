@@ -1,6 +1,6 @@
 # Network Focus
 
-A Claude Code plugin that turns a CEO's network spreadsheet and quarterly goals into a checked, one-page **weekly Network Focus brief**. The brief covers who to invest time in this week and why, dormant relationships that still matter, and data problems to check. A chief of staff who doesn't write code runs it from a one-button local web page or from the Claude desktop app.
+A Claude Code plugin that turns a CEO's network spreadsheet and quarterly goals into a checked, one-page **weekly Network Focus brief**. The brief covers who to invest time in this week and why, dormant relationships that still matter, and data problems to check. A chief of staff who doesn't write code runs it from a one-button local web page or from the Claude desktop app, and the page opens on a **CEO dashboard**: this week's #1 person with a ready-to-send message, a checklist for the rest, and a progress ring.
 
 Built for the MindMaven *AI Builder Partner* trial project.
 
@@ -24,7 +24,7 @@ load_roster.py → goal-scout × N (parallel) → pick → validate_brief.py →
 - `plugins/network-focus/scripts/`: deterministic Python covering loading, data checks (missing orgs, ambiguous references, goals vs data, stale files), grounding validation (word-for-word quotes, matching numbers) and the PDF.
 - `plugins/network-focus/agents/`: `goal-scout` (Sonnet, one per goal) and `fact-checker` (Haiku, sees only the cited rows).
 - `plugins/network-focus/skills/`: `brief`, `check`, `setup-app`.
-- `plugins/network-focus/app/`: the local page (standard-library server, 127.0.0.1 only, token-protected).
+- `plugins/network-focus/app/`: the local page and CEO dashboard (standard-library server, 127.0.0.1 only, token-protected).
 - `schemas/`: the JSON contracts shared by the agents and the validator.
 
 ## Docs
@@ -34,6 +34,6 @@ load_roster.py → goal-scout × N (parallel) → pick → validate_brief.py →
 ## Tests
 
 ```bash
-uv run pytest                                      # 109 unit tests, no API calls
+uv run pytest                                      # 129 unit tests, no API calls
 uv run python tests/evals/run_evals.py --grade     # 6 real end-to-end runs + grader (~$8)
 ```
