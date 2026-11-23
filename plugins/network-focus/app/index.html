@@ -48,6 +48,19 @@
   .sheet-wrap input[type=text] { width: 100%; min-width: 200px; font: inherit; font-size: 14px; padding: 6px 8px;
                                  border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
   #sheetStatus { margin: 0 0 12px; }
+  .when-line { color: var(--gold); font-size: 13px; font-weight: 600; margin-top: 2px; }
+  .week-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 860px) { .week-grid { grid-template-columns: 1fr; } }
+  .day { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
+  .day h3 { margin: 0 0 10px; }
+  .slot { border-top: 1px solid var(--soft); padding: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+  .slot:first-of-type { border-top: 0; }
+  .slot.done b { text-decoration: line-through; opacity: .55; }
+  .slot .t { font-variant-numeric: tabular-nums; color: var(--gold); font-weight: 700; font-size: 14px; }
+  .slot input, .slot select { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px;
+                              background: var(--bg); color: var(--ink); width: 100%; }
+  .slot a { color: var(--navy); font-size: 13px; font-weight: 600; }
+  #calStatus { margin: 0 0 12px; }
   nav { display: flex; gap: 6px; align-items: center; margin: 20px 0 22px; border-bottom: 1px solid var(--line); }
   .tab { background: none; border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: 8px 4px 10px;
          margin-right: 18px; color: var(--muted); font-weight: 600; }
@@ -131,6 +144,7 @@
   <div class="goals" id="goalRings" hidden></div>
   <nav>
     <button class="tab" id="tabWeek" aria-selected="true">This week</button>
+    <button class="tab" id="tabCalendar" aria-selected="false">Calendar</button>
     <button class="tab" id="tabSheet" aria-selected="false">Spreadsheet</button>
     <button class="tab" id="tabMake" aria-selected="false">Make the brief</button>
     <a id="pdfLink" href="#" target="_blank" hidden>Open PDF ↗</a>
@@ -162,6 +176,12 @@
         <h3 id="quietTitle">Going quiet soon</h3><div id="quiet"></div>
       </div>
     </div>
+  </section>
+
+  <!-- CALENDAR: when to make each move; times can be changed, and each one becomes a calendar invite -->
+  <section id="viewCalendar" hidden>
+    <p class="muted" id="calStatus">Suggested times for this week's moves. Change any time, then click Add to calendar to put it in Google Calendar, Outlook or Apple Calendar.</p>
+    <div class="week-grid" id="calendarWeek"></div>
   </section>
 
   <!-- SPREADSHEET: the roster as a table; Done and Comments are saved back to the file -->
@@ -206,12 +226,61 @@ let dash = null;
 
 /* ---------- tabs ---------- */
 function show(view) {
-  for (const [v, sec, tab] of [["week", "viewWeek", "tabWeek"], ["make", "viewMake", "tabMake"], ["sheet", "viewSheet", "tabSheet"]]) {
+  for (const [v, sec, tab] of [["week", "viewWeek", "tabWeek"], ["make", "viewMake", "tabMake"], ["sheet", "viewSheet", "tabSheet"],
+                               ["calendar", "viewCalendar", "tabCalendar"]]) {
     $(sec).hidden = v !== view;
     $(tab).setAttribute("aria-selected", String(v === view));
   }
   if (view === "sheet") loadSheet();
+  if (view === "calendar") renderCalendar();
 }
+$("tabCalendar").addEventListener("click", () => (dash && !dash.empty ? show("calendar") : show("make")));
+
+/* ---------- calendar tab ---------- */
+const fmtSlot = (w) => new Date(w).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+function renderCalendar() {
+  if (!dash || dash.empty) return;
+  const monday = new Date(dash.week_of + "T00:00:00");
+  const days = [0, 1, 2, 3, 4].map((i) => { const d = new Date(monday); d.setDate(d.getDate() + i); return d; });
+  const people = [dash.top, ...dash.others, ...dash.dormant].filter((p) => p.when);
+  const key = (d) => d.toISOString().slice(0, 10);
+  const local = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  $("calendarWeek").innerHTML = days.map((d) => {
+    const mine = people.filter((p) => p.when.slice(0, 10) === local(d)).sort((a, b) => a.when.localeCompare(b.when));
+    return `<div class="day"><h3>${d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</h3>` +
+      (mine.map((p) => `<div class="slot ${p.done ? "done" : ""}">
+        <span class="t">${esc(p.when.slice(11))} · ${p.kind === "call" ? "Call" : "Email"}</span>
+        <b>${esc(p.name)}</b>
+        <input type="datetime-local" data-cal-when="${p.row_id}" value="${esc(p.when)}" aria-label="When to contact ${esc(p.name)}">
+        <select data-cal-kind="${p.row_id}" aria-label="Call or email ${esc(p.name)}">
+          <option value="call" ${p.kind === "call" ? "selected" : ""}>Call</option>
+          <option value="email" ${p.kind === "email" ? "selected" : ""}>Email</option></select>
+        <a href="/api/ics?row_id=${p.row_id}" download>Add to calendar</a></div>`).join("") || `<p class="muted">Nothing planned.</p>`) + "</div>";
+  }).join("");
+  const outside = people.filter((p) => !days.some((d) => p.when.slice(0, 10) === local(d)));
+  if (outside.length) $("calendarWeek").insertAdjacentHTML("beforeend", `<p class="muted">Outside Mon–Fri: ${outside.map((p) => `${esc(p.name)} (${esc(fmtSlot(p.when))})`).join(", ")}</p>`);
+}
+async function saveWhen(rowId, when, kind) {
+  try {
+    const r = await fetch("/api/schedule", { method: "POST", headers: { "Content-Type": "application/json" },
+                                             body: JSON.stringify({ row_id: rowId, week_of: dash.week_of, when, kind }) });
+    const j = await r.json();
+    $("calStatus").textContent = r.ok ? "Saved. Click Add to calendar to update the invite." : j.message;
+    dash = await (await fetch("/api/dashboard")).json();
+    renderCalendar();
+  } catch (e) { $("calStatus").textContent = OOPS; }
+}
+document.addEventListener("change", (e) => {
+  const d = e.target.dataset;
+  if (d.calWhen !== undefined && e.target.value) {
+    const kind = document.querySelector(`[data-cal-kind="${d.calWhen}"]`).value;
+    saveWhen(Number(d.calWhen), e.target.value.slice(0, 16), kind);
+  }
+  if (d.calKind !== undefined) {
+    const when = document.querySelector(`[data-cal-when="${d.calKind}"]`).value.slice(0, 16);
+    saveWhen(Number(d.calKind), when, e.target.value);
+  }
+});
 $("tabSheet").addEventListener("click", () => show("sheet"));
 
 /* ---------- spreadsheet tab ---------- */
@@ -293,7 +362,7 @@ function itemRow(p) {
   const isNew = p.new && main ? ` <span class="chip new">New · ${esc(main.title)}</span>` : "";
   return `<div class="item ${p.done ? "done" : ""}">
     <input type="checkbox" data-row="${p.row_id}" ${p.done ? "checked" : ""} aria-label="Done: ${esc(p.name)}">
-    <div class="txt"><b>${esc(p.name)}</b> · ${sub}${isNew}<small>${esc(p.move)}</small>
+    <div class="txt"><b>${esc(p.name)}</b> · ${sub}${isNew}${p.when ? `<div class="when-line">${esc(fmtSlot(p.when))} · ${p.kind === "call" ? "call" : "email"}</div>` : ""}<small>${esc(p.move)}</small>
       ${p.message ? `<details class="peek"><summary>Preview message</summary><p>${esc(p.message)}</p></details>` : ""}</div>
     ${p.message ? `<button class="copy" data-copy="${p.row_id}">Copy</button>` : ""}</div>`;
 }
@@ -312,7 +381,7 @@ function renderDashboard() {
   const t = dash.top;
   $("heroName").textContent = t.name;
   $("heroGoal").textContent = t.goals.join(" + "); $("heroGoal").hidden = !t.goals.length;
-  $("heroRole").textContent = t.role_company;
+  $("heroRole").textContent = t.role_company + (t.when ? ` · planned ${fmtSlot(t.when)} (${t.kind === "call" ? "call" : "email"})` : "");
   $("heroMove").textContent = t.move;
   $("heroWhy").textContent = t.why;
   $("heroCopy").hidden = !t.message;

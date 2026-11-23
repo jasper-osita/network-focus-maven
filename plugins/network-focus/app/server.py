@@ -27,6 +27,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from dashboard_data import dashboard_payload, export_dashboard, roster_dir, set_done
 from progress import failure_message, progress_from_event
 from roster_watch import RosterWatch
+from schedule import ics_for, set_when, valid_when
 
 HERE = Path(__file__).resolve().parent
 MAX_UPLOAD = 10 * 1024 * 1024
@@ -270,6 +271,18 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                     "running": bool(run and not run.done)})
             if url.path == "/api/sheet":
                 return self._json(200, sheet_cmd(cfg, ["read"]))
+            if url.path == "/api/ics":
+                payload = dashboard_payload(cfg.nf_home, date.today())
+                row = parse_qs(url.query).get("row_id", [""])[0]
+                person = None if payload.get("empty") else next(
+                    (p for p in [payload["top"], *payload["others"], *payload["dormant"]] if str(p["row_id"]) == row), None)
+                if not person or not person.get("when"):
+                    return self._send(404, b"not found", "text/plain")
+                safe = "".join(ch for ch in f"{'Call' if person['kind'] == 'call' else 'Email'} {person['name']}"
+                               if ch.isascii() and (ch.isalnum() or ch in " -")) or "Network Focus"
+                body = ics_for(person, f"{payload['week_of']}-{person['row_id']}@network-focus").encode("utf-8")
+                return self._send(200, body, "text/calendar; charset=utf-8",
+                                  {"Content-Disposition": f'attachment; filename="{safe}.ics"'})
             if url.path == "/api/roster-changes":
                 return self._json(200, self.server.watch.state())
             if url.path == "/api/dashboard":
@@ -376,6 +389,19 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                 return self._json(400, {"message": "That request wasn't valid. Reload the page and try again."})
             if url.path == "/api/done":
                 return self._done(body)
+            if url.path == "/api/schedule":
+                row_id, week, when, kind = body.get("row_id"), body.get("week_of"), body.get("when"), body.get("kind")
+                if type(row_id) is not int or not isinstance(week, str) or not valid_when(when) \
+                        or kind not in (None, "call", "email"):
+                    return self._json(400, {"message": "Expected a person, the week, and a date and time."})
+                payload = dashboard_payload(cfg.nf_home, date.today())
+                if payload.get("empty") or week != payload["week_of"]:
+                    return self._json(409, {"message": "A newer brief has been made. Reload the page."})
+                if row_id not in {p["row_id"] for p in [payload["top"], *payload["others"], *payload["dormant"]]}:
+                    return self._json(400, {"message": "That person isn't in this week's brief any more. Reload the page."})
+                set_when(cfg.nf_home, week, row_id, when, kind)
+                export_dashboard(cfg.nf_home, date.today())
+                return self._json(200, {"ok": True})
             if url.path == "/api/sheet":
                 name, company = body.get("name"), body.get("company")
                 done, comment = body.get("done"), body.get("comment")

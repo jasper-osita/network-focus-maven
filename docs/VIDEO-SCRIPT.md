@@ -40,6 +40,7 @@ Screen-record the whole thing (QuickTime → File → New Screen Recording, or L
 - The page switches to **This week**. "One person, one move, one click." Point at **Diana Chen**, then click **Copy message** and paste into a note. "The draft is checked like every other claim."
 - Click **Mark done**: the ring and the **Hire a CTO** goal ring move.
 - Click the **Spreadsheet** tab: Diana's row now has today's date in **Done**. Type a comment, press Tab. "Ticks and comments are written back to the CEO's own spreadsheet."
+- Click the **Calendar** tab: each move has a suggested day and time (the #1 on Monday). Change one, then click **Add to calendar**: the invite opens in her calendar with the move and the drafted message.
 - **Now start the mid-week change** (it shows up 2 minutes later): in Excel or Google Drive, add a row: *Ana Ruiz · Partner · Andreessen Horowitz · investor · 5 · email · "Asked for a Series C call before Friday." · 3 · investor, series-c*. Save.
 - Back on **This week**, click **Open PDF**: walk the picks, then the decoys it skipped ("James Park: strength 5, best friend, no goal link"), then **Check before the meeting**: a16z, Patrick, ARC.
 - Switch to the **CEO dashboard artifact**. "This is what the CEO opens on claude.ai. It reads the dashboard the page just saved into Google Drive, through her own Google Drive connection." Point at **Live from Google Drive** and the updated time.

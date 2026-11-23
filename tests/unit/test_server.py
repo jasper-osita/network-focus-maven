@@ -378,3 +378,44 @@ def test_done_refreshes_the_live_dashboard_file(server, tmp_path, brief_dict, ro
     call(server, "POST", "/api/done", body={"row_id": 3, "done": True, "week_of": week_of(date.today()).isoformat()})
     data = json.loads((folder / DASHBOARD_FILE).read_text(encoding="utf-8"))
     assert data["top"]["name"] == "Diana Chen" and data["top"]["done"] is True
+
+
+# ---- calendar ----
+def test_dashboard_has_times_and_they_can_change(server, brief_dict, roster_dict, warnings_dict):
+    from datetime import date
+    from dashboard_data import week_of
+    put_current_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    week = week_of(date.today()).isoformat()
+    top = json.loads(call(server, "GET", "/api/dashboard")[1])["top"]
+    assert top["when"].startswith(week) and top["kind"] in ("call", "email")
+    status, _, _ = call(server, "POST", "/api/schedule", body={"row_id": 3, "week_of": week, "when": week + "T16:30", "kind": "call"})
+    top = json.loads(call(server, "GET", "/api/dashboard")[1])["top"]
+    assert status == 200 and top["when"] == week + "T16:30" and top["kind"] == "call"
+    assert call(server, "POST", "/api/schedule", body={"row_id": 3, "week_of": week, "when": "next tuesday"})[0] == 400
+    assert call(server, "POST", "/api/schedule", body={"row_id": 99, "week_of": week, "when": week + "T10:00"})[0] == 400
+
+
+def test_ics_download(server, brief_dict, roster_dict, warnings_dict):
+    put_current_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    status, body, headers = call(server, "GET", "/api/ics?row_id=3")
+    assert status == 200 and headers["Content-Type"].startswith("text/calendar") and "attachment" in headers["Content-Disposition"]
+    assert b"SUMMARY:" in body and b"Diana Chen" in body
+    assert call(server, "GET", "/api/ics?row_id=3", cookie=False)[0] == 401
+
+
+def test_index_has_calendar_tab(server):
+    page = call(server, "GET", f"/?t={TOKEN}", cookie=False)[1].decode()
+    assert 'id="tabCalendar"' in page and 'id="calendarWeek"' in page
+
+
+def test_page_script_parses():
+    """A clashing name or typo in index.html's script blanks the whole page; Python tests alone wouldn't notice."""
+    import shutil as sh
+    import subprocess as sp
+    node = sh.which("node")
+    if not node:
+        pytest.skip("node isn't installed")
+    html = (ROOT / "plugins" / "network-focus" / "app" / "index.html").read_text(encoding="utf-8")
+    script = html.split("<script>")[1].split("</script>")[0]
+    r = sp.run([node, "-e", "new Function(require('fs').readFileSync(0, 'utf8'))"], input=script, capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr

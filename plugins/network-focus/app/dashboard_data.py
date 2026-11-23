@@ -6,6 +6,8 @@ import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
+from schedule import load_schedule, suggest
+
 SNAPSHOT_GLOB = "*-network-focus.json"
 PROGRESS_FILE = ".progress.json"
 
@@ -140,13 +142,22 @@ def dashboard_payload(nf_home: Path, today: date) -> dict:
     focus = snap["brief"]["focus"]
     stem = f"{snap['week_of']}-network-focus"  # render_pdf writes the PDF next to the snapshot
     earlier = [s for s in snaps[1:] if s["week_of"] < snap["week_of"]]
+    top, others = _person(focus[0], snap, marks), [_person(x, snap, marks) for x in focus[1:]]
+    dormant = [_person(x, snap, marks) for x in snap["brief"].get("dormant", [])]
+    plan = {p["row_id"]: p for p in suggest(snap["brief"])}
+    for row, mine in load_schedule(nf_home, snap["week_of"]).items():  # the chief of staff's own times win
+        if isinstance(mine, dict) and row.lstrip("-").isdigit() and int(row) in plan:
+            plan[int(row)].update({k: v for k, v in mine.items() if k in ("when", "kind")})
+            plan[int(row)]["minutes"] = 30 if plan[int(row)]["kind"] == "call" else 15
+    for p in [top, *others, *dormant]:
+        p.update({k: plan[p["row_id"]][k] for k in ("when", "kind", "minutes")} if p["row_id"] in plan else {})
     return {
         "week_of": snap["week_of"],
         "stale": snap["week_of"] != week_of(today).isoformat(),
         "pdf_url": f"/briefs/{stem}.pdf",
-        "top": _person(focus[0], snap, marks),
-        "others": [_person(x, snap, marks) for x in focus[1:]],
-        "dormant": [_person(x, snap, marks) for x in snap["brief"].get("dormant", [])],
+        "top": top,
+        "others": others,
+        "dormant": dormant,
         "questions": snap.get("questions", []),
         "going_quiet": snap.get("going_quiet", []),
         "banner": snap.get("banner", []),
