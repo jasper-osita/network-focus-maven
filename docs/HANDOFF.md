@@ -8,7 +8,7 @@ Every Monday, Network Focus turns the CEO's network spreadsheet and goals into a
 
 1. **Mac:** double-click *Mac - Install Network Focus* (if macOS says it "can't be opened": **System Settings → Privacy & Security → Open Anyway**). **Windows:** double-click *Windows - Install Network Focus* (if you see "Windows protected your PC": **More info → Run anyway**). A window opens and works through 5 steps on its own.
 2. When your browser opens, **sign in to Claude**, then come back to the window. If a Mac asks for your password, type it (nothing shows while you type).
-3. When it says **Done**, the dashboard opens and a **Network Focus** link is on your Desktop. It also makes *My Drive › Network Focus*: **share it with the CEO**.
+3. When it says **Done**, the dashboard opens and a **Network Focus** link is on your Desktop. It also makes *My Drive › Network Focus*: **share it and the CEO dashboard link with the CEO** (she connects Google Drive in claude.ai to see it live).
 
 *If the double-click is blocked:* on a Mac, paste into **Terminal** `curl -fsSL https://raw.githubusercontent.com/jasper-osita/network-focus-maven/main/install.sh | bash`; on Windows, paste into **PowerShell** `irm https://raw.githubusercontent.com/jasper-osita/network-focus-maven/main/install.ps1 | iex`
 

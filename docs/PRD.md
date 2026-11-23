@@ -49,7 +49,7 @@ load_roster.py → goal-scout × N (parallel) → main skill picks → validate_
 | CRM (Affinity / HubSpot) | Role, company, tags, intro history | Weekly |
 | **Manual** (built) | Strength, how she knows them, notes: the CEO's judgment, in the roster spreadsheet in Google Drive | Whenever it's edited; noticed within minutes |
 
-**Store dates, not "days since."** The trial sheet's day counts are relative to an export date the file never records, which is why staleness can only be guessed. In production, `last_contact_date` is stored and the gap is computed at run time. **Trade-offs:** inbox access is opt-in and summaries-only (privacy); daily sync costs more API calls; LinkedIn stays manual (terms of service). **Next step (not built):** the CEO view as a private claude.ai artifact on her phone, with shared ticks.
+**Dates, not "days since" (built).** The trial sheet's counts are relative to an unrecorded export date, so the first run adds a *Last Contact Date* column and turns counts into `=TODAY()−date` formulas. **Trade-offs:** inbox access is opt-in and summaries-only (privacy); daily sync costs more API calls; LinkedIn stays manual (terms of service). **CEO live view (built):** the page saves the dashboard into Drive; a private claude.ai artifact reads it via her Google Drive connector. Ticks and comments go to *Done* / *Comments* columns.
 
 ## 5. Failure modes handled (in code)
 
@@ -60,7 +60,7 @@ load_roster.py → goal-scout × N (parallel) → main skill picks → validate_
 | Ambiguous reference ("Patrick at Greylock", but the only Patrick is at Stripe) | Warning. The skill never guesses. |
 | Goals contradict data ("no ARC contact", but Paul Christiano is at ARC Evals) | Warning: update goals.md or check the row |
 | Thin context (strength ≤1, summary under 10 words) | Never a dormant pick; a focus pick only if labeled low-confidence (both enforced) |
-| Stale or reused file (older than 7 days, or the same fingerprint as an earlier week) | Banner at the top of the brief |
+| Stale or reused file (older than 7 days without dates, or the same fingerprint as an earlier week) | Banner at the top of the brief |
 | Roster is a Google Sheet, or Drive is signed out | **Stops** with the exact fix |
 | Mid-week newcomer | Placed only if tied to Goal 1 and a rule-safe slot is open; else *Worth considering* |
 | Invented names, quotes or numbers, dormant picks under 60 days, wrong counts | Fixed (≤2 rounds) or the run stops. The PDF step refuses invalid briefs. |
