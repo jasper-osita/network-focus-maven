@@ -341,3 +341,30 @@ def test_status_survives_unreadable_drive(server, tmp_path, monkeypatch):
                         if self == folder else real(self, pat))
     status, body, _ = call(server, "GET", "/api/status")
     assert status == 200 and json.loads(body)["inbox"] == []
+
+
+# ---- spreadsheet tab and write-back ----
+def test_sheet_endpoint_reads_and_writes(server):
+    data = json.loads(call(server, "GET", "/api/sheet")[1])
+    assert data["ok"] is True and len(data["rows"]) == 25 and data["rows"][0]["done"] == ""
+    status, body, _ = call(server, "POST", "/api/sheet", body={"name": "Diana Chen", "company": "Stripe", "done": True,
+                                                               "comment": "Asked for intros."})
+    assert status == 200 and json.loads(body)["ok"] is True
+    diana = next(r for r in json.loads(call(server, "GET", "/api/sheet")[1])["rows"] if r["name"] == "Diana Chen")
+    assert diana["done"] and diana["comments"] == "Asked for intros."
+    assert call(server, "POST", "/api/sheet", body={"name": "Diana Chen"})[0] == 400
+
+
+def test_done_also_marks_the_sheet(server, brief_dict, roster_dict, warnings_dict):
+    put_current_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    from datetime import date
+    from dashboard_data import week_of
+    status, body, _ = call(server, "POST", "/api/done", body={"row_id": 3, "done": True, "week_of": week_of(date.today()).isoformat()})
+    assert status == 200 and json.loads(body)["sheet"]["ok"] is True
+    diana = next(r for r in json.loads(call(server, "GET", "/api/sheet")[1])["rows"] if r["name"] == "Diana Chen")
+    assert diana["done"]
+
+
+def test_index_has_sheet_tab(server):
+    page = call(server, "GET", f"/?t={TOKEN}", cookie=False)[1].decode()
+    assert 'id="tabSheet"' in page and 'id="sheetTable"' in page

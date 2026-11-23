@@ -38,6 +38,16 @@
   .goal b { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
   .goal.none { color: var(--warn); font-weight: 600; }
   .chip.new { background: var(--new-bg); color: var(--new-ink); }
+  .sheet-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+  .sheet-wrap table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  .sheet-wrap th, .sheet-wrap td { padding: 8px 10px; border-bottom: 1px solid var(--soft); text-align: left; vertical-align: middle; }
+  .sheet-wrap th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; background: var(--card); white-space: nowrap; }
+  .sheet-wrap td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sheet-wrap td.when { color: var(--ok); font-size: 13px; white-space: nowrap; }
+  .sheet-wrap input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--navy); }
+  .sheet-wrap input[type=text] { width: 100%; min-width: 200px; font: inherit; font-size: 14px; padding: 6px 8px;
+                                 border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+  #sheetStatus { margin: 0 0 12px; }
   nav { display: flex; gap: 6px; align-items: center; margin: 20px 0 22px; border-bottom: 1px solid var(--line); }
   .tab { background: none; border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: 8px 4px 10px;
          margin-right: 18px; color: var(--muted); font-weight: 600; }
@@ -121,6 +131,7 @@
   <div class="goals" id="goalRings" hidden></div>
   <nav>
     <button class="tab" id="tabWeek" aria-selected="true">This week</button>
+    <button class="tab" id="tabSheet" aria-selected="false">Spreadsheet</button>
     <button class="tab" id="tabMake" aria-selected="false">Make the brief</button>
     <a id="pdfLink" href="#" target="_blank" hidden>Open PDF ↗</a>
   </nav>
@@ -151,6 +162,12 @@
         <h3 id="quietTitle">Going quiet soon</h3><div id="quiet"></div>
       </div>
     </div>
+  </section>
+
+  <!-- SPREADSHEET: the roster as a table; Done and Comments are saved back to the file -->
+  <section id="viewSheet" hidden>
+    <p class="muted" id="sheetStatus">Loading the spreadsheet…</p>
+    <div class="sheet-wrap"><table id="sheetTable"></table></div>
   </section>
 
   <!-- MAKE THE BRIEF: the chief of staff's controls -->
@@ -189,10 +206,46 @@ let dash = null;
 
 /* ---------- tabs ---------- */
 function show(view) {
-  const week = view === "week";
-  $("viewWeek").hidden = !week; $("viewMake").hidden = week;
-  $("tabWeek").setAttribute("aria-selected", String(week)); $("tabMake").setAttribute("aria-selected", String(!week));
+  for (const [v, sec, tab] of [["week", "viewWeek", "tabWeek"], ["make", "viewMake", "tabMake"], ["sheet", "viewSheet", "tabSheet"]]) {
+    $(sec).hidden = v !== view;
+    $(tab).setAttribute("aria-selected", String(v === view));
+  }
+  if (view === "sheet") loadSheet();
 }
+$("tabSheet").addEventListener("click", () => show("sheet"));
+
+/* ---------- spreadsheet tab ---------- */
+let sheetRows = [];
+async function loadSheet() {
+  let j;
+  try { j = await (await fetch("/api/sheet")).json(); } catch (e) { $("sheetStatus").textContent = OOPS; return; }
+  if (!j.ok) { $("sheetStatus").textContent = j.message; $("sheetTable").innerHTML = ""; return; }
+  sheetRows = j.rows;
+  $("sheetStatus").textContent = `From ${j.file}. Ticks and comments here are saved to the spreadsheet.`;
+  $("sheetTable").innerHTML = `<thead><tr><th>Name</th><th>Role</th><th>Company</th><th>Days quiet</th><th>Strength</th>
+    <th>Tags</th><th>Done</th><th></th><th>Comments</th></tr></thead><tbody>` + sheetRows.map((r, i) => `<tr>
+    <td><b>${esc(r.name)}</b></td><td>${esc(r.role)}</td><td>${esc(r.company)}</td><td class="num">${esc(r.days ?? "")}</td>
+    <td class="num">${esc(r.strength ?? "")}</td><td>${esc(r.tags)}</td>
+    <td><input type="checkbox" data-sheet-done="${i}" ${r.done ? "checked" : ""} aria-label="Done: ${esc(r.name)}"></td>
+    <td class="when">${esc(r.done)}</td>
+    <td><input type="text" data-sheet-comment="${i}" value="${esc(r.comments)}" placeholder="Add a comment" aria-label="Comment on ${esc(r.name)}"></td>
+  </tr>`).join("") + "</tbody>";
+}
+async function saveSheet(body) {
+  try {
+    const j = await (await fetch("/api/sheet", { method: "POST", headers: { "Content-Type": "application/json" },
+                                                 body: JSON.stringify(body) })).json();
+    if (!j.ok) { $("sheetStatus").textContent = j.message; return; }
+    $("sheetStatus").textContent = `Saved to ${j.file}.`;
+    await loadSheet();
+    $("sheetStatus").textContent = `Saved to ${j.file}.`;
+  } catch (e) { $("sheetStatus").textContent = OOPS; }
+}
+document.addEventListener("change", (e) => {
+  const d = e.target.dataset;
+  if (d.sheetDone !== undefined) { const r = sheetRows[+d.sheetDone]; saveSheet({ name: r.name, company: r.company, done: e.target.checked }); }
+  if (d.sheetComment !== undefined) { const r = sheetRows[+d.sheetComment]; saveSheet({ name: r.name, company: r.company, comment: e.target.value }); }
+});
 $("tabWeek").addEventListener("click", () => dash && !dash.empty ? show("week") : show("make"));
 $("tabMake").addEventListener("click", () => show("make"));
 
@@ -356,6 +409,10 @@ async function toggle(rowId, done) {
                                           body: JSON.stringify({ row_id: rowId, done, week_of: dash.week_of }) });
     if (!r.ok) return loadDashboard();
     const j = await r.json();
+    if (j.sheet && !j.sheet.ok) {  // the tick counts on the dashboard either way; say why the sheet wasn't updated
+      $("toast").textContent = j.sheet.message; $("toast").classList.add("show");
+      setTimeout(() => { $("toast").classList.remove("show"); $("toast").textContent = "Message copied. Paste it into your email."; }, 4000);
+    }
     const p = everyone().find((x) => x.row_id === rowId);
     if (p) p.done = done;
     dash.progress = j.progress;

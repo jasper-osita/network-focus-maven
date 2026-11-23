@@ -189,6 +189,16 @@ def diff_runner(cfg: AppConfig):
     return run
 
 
+def sheet_cmd(cfg: AppConfig, args: list[str]) -> dict:
+    """Runs sheet.py (it needs openpyxl, which this stdlib-only server doesn't have)."""
+    try:
+        p = subprocess.run([cfg.uv_path, "run", "--quiet", str(cfg.scripts_dir / "sheet.py"), *args], capture_output=True,
+                           text=True, encoding="utf-8", env={**os.environ, "NF_HOME": str(cfg.nf_home)}, timeout=120)
+        return json.loads(p.stdout.strip().splitlines()[-1])
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return {"ok": False, "message": "I couldn't reach the spreadsheet. Click Check setup to see what's wrong."}
+
+
 def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
     state = {"run": None, "runs": {}}
     state_lock = threading.Lock()
@@ -258,6 +268,8 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                               for f in inbox],
                     "briefs": [{"name": f.name, "url": f"/briefs/{f.name}"} for f in briefs],
                     "running": bool(run and not run.done)})
+            if url.path == "/api/sheet":
+                return self._json(200, sheet_cmd(cfg, ["read"]))
             if url.path == "/api/roster-changes":
                 return self._json(200, self.server.watch.state())
             if url.path == "/api/dashboard":
@@ -286,7 +298,10 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
             if row_id not in picks:
                 return self._json(400, {"message": "That person isn't in this week's brief any more. Reload the page."})
             set_done(cfg.nf_home, payload["week_of"], row_id, done, picks[row_id])
-            return self._json(200, {"progress": dashboard_payload(cfg.nf_home, date.today())["progress"]})
+            person = next(p for p in [payload["top"], *payload["others"], *payload["dormant"]] if p["row_id"] == row_id)
+            sheet = sheet_cmd(cfg, ["set", "--name", person["name"], "--company", person.get("company", ""),
+                                    "--done", "yes" if done else "no"])
+            return self._json(200, {"progress": dashboard_payload(cfg.nf_home, date.today())["progress"], "sheet": sheet})
 
         def _events(self, run_id: str):
             run = state["runs"].get(run_id)
@@ -360,6 +375,18 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                 return self._json(400, {"message": "That request wasn't valid. Reload the page and try again."})
             if url.path == "/api/done":
                 return self._done(body)
+            if url.path == "/api/sheet":
+                name, company = body.get("name"), body.get("company")
+                done, comment = body.get("done"), body.get("comment")
+                if not isinstance(name, str) or not isinstance(company, str) or (done is None and comment is None) \
+                        or (done is not None and type(done) is not bool) or (comment is not None and not isinstance(comment, str)):
+                    return self._json(400, {"message": "Expected a name, a company, and done or a comment."})
+                args = ["set", "--name", name, "--company", company]
+                if done is not None:
+                    args += ["--done", "yes" if done else "no"]
+                if comment is not None:
+                    args += ["--comment", comment[:2000]]
+                return self._json(200, sheet_cmd(cfg, args))
             if url.path == "/api/quit":  # the installer restarts the page this way on Windows (no launchctl there)
                 self._json(200, {"ok": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()

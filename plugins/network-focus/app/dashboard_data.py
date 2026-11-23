@@ -105,6 +105,7 @@ def _person(item: dict, snapshot: dict, marks: dict) -> dict:
         "row_id": item["row_id"],
         "name": item.get("name") or row.get("name", ""),
         "role_company": ", ".join(x for x in (row.get("role"), row.get("company")) if x) or item.get("who", ""),
+        "company": row.get("company", ""),
         "goals": [goals[str(g)] for g in item.get("goals", []) if str(g) in goals],
         "move": item.get("move", ""),
         "why": item.get("why", ""),

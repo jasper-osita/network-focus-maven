@@ -15,7 +15,7 @@ Every Monday, Network Focus turns the CEO's network spreadsheet and goals into a
 ## Every Monday (2 minutes, plus 3 minutes of waiting)
 
 1. Put this week's spreadsheet in *Google Drive › Network Focus* (Excel or .csv, not a Google Sheet). Double-click **Network Focus** on the Desktop, open **Make the brief** and click **Generate this week's brief**.
-2. It switches to **This week**: the CEO's #1 with **Copy message** and **Mark done**, a checklist, and one ring per goal. Tick moves as she makes them. **Open PDF** gives the printable brief.
+2. It switches to **This week**: the CEO's #1 with **Copy message** and **Mark done**, a checklist and one ring per goal. Ticks also fill the spreadsheet's **Done** column; the **Spreadsheet** tab adds **Comments**. **Open PDF** prints the brief.
 3. **Mid-week:** if the roster changes, the page shows *Roster updated · New: …*. Click **Update this week's brief**; only a new Series C contact can take a slot.
 
 *No page?* In the Claude app's **Code** tab, with the Network Focus folder open, type **make this week's network brief**.
