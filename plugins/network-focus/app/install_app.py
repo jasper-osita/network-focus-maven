@@ -171,7 +171,7 @@ def install(plugin_root: Path, home: Path, port: int = 8765, launch: bool = True
     app_dir.mkdir(parents=True, exist_ok=True)
     for f in APP_FILES:
         shutil.copy(plugin_root / "app" / f, app_dir / f)
-    for d in ("scripts", "templates"):
+    for d in ("scripts", "templates", "schemas"):  # schemas: the validator reads them
         shutil.copytree(plugin_root / d, app_dir / d, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     nf_home = Path(nf_home) if nf_home else default_home
