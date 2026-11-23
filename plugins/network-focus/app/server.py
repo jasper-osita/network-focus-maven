@@ -24,7 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from dashboard_data import dashboard_payload, roster_dir, set_done
+from dashboard_data import dashboard_payload, export_dashboard, roster_dir, set_done
 from progress import failure_message, progress_from_event
 from roster_watch import RosterWatch
 
@@ -301,6 +301,7 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
             person = next(p for p in [payload["top"], *payload["others"], *payload["dormant"]] if p["row_id"] == row_id)
             sheet = sheet_cmd(cfg, ["set", "--name", person["name"], "--company", person.get("company", ""),
                                     "--done", "yes" if done else "no"])
+            export_dashboard(cfg.nf_home, date.today())  # the CEO's live view reads this from Google Drive
             return self._json(200, {"progress": dashboard_payload(cfg.nf_home, date.today())["progress"], "sheet": sheet})
 
         def _events(self, run_id: str):
@@ -408,7 +409,8 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
                     if state["run"] and not state["run"].done:
                         return self._json(409, {"message": "A brief is already being made. Give it a minute."})
                     watch = self.server.watch
-                    run = Run(cfg, file, mode, on_done=lambda: watch.check_once(time.time()))
+                    run = Run(cfg, file, mode, on_done=lambda: (export_dashboard(cfg.nf_home, date.today()),
+                                                                watch.check_once(time.time())))
                     state["run"] = state["runs"][run.id] = run
                 run.start()
                 return self._json(200, {"run_id": run.id})
@@ -429,6 +431,7 @@ def make_server(cfg: AppConfig) -> ThreadingHTTPServer:
     cfg.port = srv.server_address[1]
     srv.cfg = cfg
     srv.watch = RosterWatch(cfg.nf_home, diff_runner(cfg), interval=cfg.watch_interval or 120)
+    export_dashboard(cfg.nf_home, date.today())  # bring the live view up to date when the page starts
     if cfg.watch_interval:
         srv.watch.start()
     return srv

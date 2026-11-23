@@ -368,3 +368,13 @@ def test_done_also_marks_the_sheet(server, brief_dict, roster_dict, warnings_dic
 def test_index_has_sheet_tab(server):
     page = call(server, "GET", f"/?t={TOKEN}", cookie=False)[1].decode()
     assert 'id="tabSheet"' in page and 'id="sheetTable"' in page
+
+
+def test_done_refreshes_the_live_dashboard_file(server, tmp_path, brief_dict, roster_dict, warnings_dict):
+    from datetime import date
+    from dashboard_data import DASHBOARD_FILE, week_of
+    folder = use_drive(server, tmp_path)
+    put_current_snapshot(server, brief_dict, roster_dict, warnings_dict)
+    call(server, "POST", "/api/done", body={"row_id": 3, "done": True, "week_of": week_of(date.today()).isoformat()})
+    data = json.loads((folder / DASHBOARD_FILE).read_text(encoding="utf-8"))
+    assert data["top"]["name"] == "Diana Chen" and data["top"]["done"] is True

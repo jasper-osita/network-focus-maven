@@ -155,3 +155,29 @@ def dashboard_payload(nf_home: Path, today: date) -> dict:
         "considering": snap["brief"].get("considering", []),
         "updated_at": (snap["brief"].get("updates") or [{}])[-1].get("at"),
     }
+
+
+DASHBOARD_FILE = "Network Focus dashboard.txt"  # .txt: Google Drive's file reader handles text/*, not .json
+
+
+def export_dashboard(nf_home: Path, today: date) -> Path | None:
+    """Save this week's dashboard into the Google Drive folder, where the CEO's live view reads it.
+    Does nothing without a Drive folder or a brief. Never raises: the page works the same without it."""
+    from datetime import datetime
+    nf_home = Path(nf_home)
+    folder = roster_dir(nf_home)
+    try:
+        if folder == nf_home / "inbox" or not folder.is_dir():
+            return None
+        payload = dashboard_payload(nf_home, today)
+        if payload.get("empty"):
+            return None
+        doc = {"kind": "network-focus-dashboard", "version": 1,
+               "exported_at": datetime.now().astimezone().isoformat(timespec="minutes"), **payload}
+        fd, tmp = tempfile.mkstemp(dir=folder, prefix=".nf-", suffix=".txt")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(doc, f, ensure_ascii=False)
+        os.replace(tmp, folder / DASHBOARD_FILE)
+        return folder / DASHBOARD_FILE
+    except OSError:
+        return None

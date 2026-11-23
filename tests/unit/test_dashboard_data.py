@@ -129,3 +129,26 @@ def test_person_role_falls_back_to_who(tmp_path, snapshot):
     assert p["others"][0]["role_company"] == "Partner, Sequoia Capital" and p["others"][0]["new"] is True
     assert p["top"]["new"] is False and p["considering"][0]["name"] == "Tom Park"
     assert p["updated_at"] == "2026-11-25T10:50"
+
+
+# ---- live CEO view: the page saves the dashboard into the Google Drive folder ----
+from dashboard_data import DASHBOARD_FILE, export_dashboard  # noqa: E402
+
+
+def test_export_dashboard_writes_to_drive_folder(home_with_snapshot, tmp_path):
+    folder = tmp_path / "Drive" / "Network Focus"
+    folder.mkdir(parents=True)
+    (home_with_snapshot / "settings.json").write_text(json.dumps({"roster_folder": str(folder)}))
+    set_done(home_with_snapshot, "2026-11-23", 3, True, "Diana Chen")
+    path = export_dashboard(home_with_snapshot, date(2026, 11, 23))
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert path == folder / DASHBOARD_FILE and path.suffix == ".txt"   # Drive's reader handles text/*, not .json
+    assert data["kind"] == "network-focus-dashboard" and data["top"]["name"] == "Diana Chen" and data["top"]["done"] is True
+    assert data["goals"][1]["done"] == 1 and data["exported_at"]
+
+
+def test_export_dashboard_skips_without_drive(home_with_snapshot, tmp_path):
+    assert export_dashboard(home_with_snapshot, date(2026, 11, 23)) is None
+    (home_with_snapshot / "settings.json").write_text(json.dumps({"roster_folder": str(tmp_path / "gone")}))
+    assert export_dashboard(home_with_snapshot, date(2026, 11, 23)) is None
+    assert export_dashboard(tmp_path / "empty", date(2026, 11, 23)) is None
