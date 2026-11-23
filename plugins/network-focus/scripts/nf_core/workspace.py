@@ -179,11 +179,13 @@ def file_date(path: Path) -> date:
     return date.fromtimestamp(Path(path).stat().st_mtime)
 
 
-def staleness_issues(path: Path, sha: str, history: list[dict], today: date) -> list[Issue]:
+def staleness_issues(path: Path, sha: str, history: list[dict], today: date, as_of: date | None = None,
+                     exact_dates: bool = False) -> list[Issue]:
+    """exact_dates: the sheet stores last-contact dates, so its day counts can't be stale."""
     issues = []
-    as_of = file_date(path)
+    as_of = as_of or file_date(path)
     age = (today - as_of).days
-    if age > STALE_DAYS:
+    if age > STALE_DAYS and not exact_dates:
         issues.append(Issue("STALE_FILE", "warn",
                             f"This spreadsheet's file date is {fmt_date(as_of)} ({age} days ago). "
                             f"'Days since last contact' counts from when it was exported, so every number may be "

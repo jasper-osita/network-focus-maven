@@ -69,7 +69,8 @@ def read_sheet(path: Path) -> dict:
             get = lambda k: _cell_str(row[cols[k]]) if k in cols and cols[k] < len(row) else ""
             extra[i] = (get("done"), get("comments"))
     rows = [{"row_id": c.row_id, "name": c.name, "role": c.role, "company": c.company, "days": c.days_since_contact,
-             "strength": c.strength, "tags": ", ".join(c.tags), "done": extra.get(c.row_id, ("", ""))[0],
+             "strength": c.strength, "tags": ", ".join(c.tags), "last_contact": c.last_contact,
+             "done": extra.get(c.row_id, ("", ""))[0],
              "comments": extra.get(c.row_id, ("", ""))[1]} for c in contacts]
     return {"file": path.name, "rows": rows}
 
@@ -133,3 +134,55 @@ def set_cells(path: Path, name: str, company: str, done: bool | None, comment: s
     os.close(fd)
     wb.save(tmp)
     os.replace(tmp, path)
+
+
+LAST_CONTACT = "Last Contact Date"
+
+
+def convert_dates(path: Path, as_of: date) -> bool:
+    """Once per roster: add a Last Contact Date column (as_of minus each day count) and, in Excel files, turn the day
+    counts into =TODAY()-date formulas so they stay right. Returns False if the column is already there."""
+    from datetime import timedelta
+    path = Path(path)
+    if _open_in_excel(path):
+        raise SheetError(f"{path.name} is open in Excel, so I couldn't add the Last Contact Date column yet.")
+    if path.suffix.lower() == ".csv":
+        table = _load(path)
+        h, cols = _header(table)
+        if "last_contact" in cols or "days_since_contact" not in cols:
+            return False
+        width = max(len(r) for r in table)
+        table[h] = table[h] + [""] * (width - len(table[h])) + [LAST_CONTACT]
+        for r in table[h + 1:]:
+            r.extend([""] * (width - len(r)))
+            days = _cell_str(r[cols["days_since_contact"]]) if cols["days_since_contact"] < len(r) else ""
+            r.append((as_of - timedelta(days=int(days))).isoformat() if days.isdigit() else "")
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".nf-", suffix=".csv")
+        with os.fdopen(fd, "w", newline="", encoding="utf-8-sig") as f:
+            csv.writer(f).writerows(table)
+        os.replace(tmp, path)
+        return True
+    if not _is_real_xlsx(path):
+        raise SheetError(f"{path.name} is a zipped copy, so I couldn't add the Last Contact Date column.")
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+    wb = openpyxl.load_workbook(path)
+    ws = wb.worksheets[0]
+    h, cols = _header([[c.value for c in row] for row in ws.iter_rows(max_row=HEADER_SCAN_ROWS)])
+    if "last_contact" in cols or "days_since_contact" not in cols:
+        return False
+    hr, dc, lc = h + 1, cols["days_since_contact"] + 1, ws.max_column + 1
+    ws.cell(row=hr, column=lc).value = LAST_CONTACT
+    for r in range(hr + 1, ws.max_row + 1):
+        days = ws.cell(row=r, column=dc).value
+        if isinstance(days, (int, float)) and not isinstance(days, bool) and days >= 0:
+            cell = ws.cell(row=r, column=lc)
+            cell.value = as_of - timedelta(days=int(days))
+            cell.number_format = "mmm d, yyyy"
+            ws.cell(row=r, column=dc).value = f"=TODAY()-{get_column_letter(lc)}{r}"
+            ws.cell(row=r, column=dc).number_format = "0"
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".nf-", suffix=".xlsx")
+    os.close(fd)
+    wb.save(tmp)
+    os.replace(tmp, path)
+    return True

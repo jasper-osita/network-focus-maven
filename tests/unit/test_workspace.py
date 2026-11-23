@@ -7,6 +7,7 @@ import time
 from datetime import date
 from pathlib import Path
 
+import openpyxl
 import pytest
 
 from conftest import HEADERS, ROOT, TEMPLATE_GOALS
@@ -253,9 +254,27 @@ def test_load_roster_offline_drive_file(home, monkeypatch, capsys, sample_xlsx):
     shutil.copy(sample_xlsx, home / "inbox")
     monkeypatch.setenv("NF_HOME", str(home))
 
-    def offline(path):
+    def offline(path, *rest):
         raise OSError(60, "Operation timed out", str(path))
     monkeypatch.setattr(load_roster, "read_roster", offline)
     assert load_roster.main([]) == 2
     out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert out["status"] == "blocked" and "internet connection" in out["message"]
+
+
+def test_load_roster_adds_dates_once_and_keeps_stale_warning(home, sample_xlsx):
+    dest = home / "inbox" / "roster.xlsx"
+    shutil.copy(sample_xlsx, dest)
+    old = time.time() - 21 * 86400
+    os.utime(dest, (old, old))
+    code, out, _ = run_cli(home)
+    warns = json.loads((home / ".work" / "warnings.json").read_text())["warnings"]
+    assert code == 0 and any(w["code"] == "STALE_FILE" for w in warns)      # first dates are only as good as the file date
+    head = [c.value for c in openpyxl.load_workbook(dest).worksheets[0][1]]
+    assert "Last Contact Date" in head
+    code, out, _ = run_cli(home)
+    warns = json.loads((home / ".work" / "warnings.json").read_text())["warnings"]
+    roster = json.loads((home / ".work" / "roster.json").read_text())
+    assert code == 0 and not any(w["code"] == "STALE_FILE" for w in warns)  # real dates now: nothing to guess
+    marcus = next(c for c in roster["contacts"] if c["name"] == "Marcus Wei")
+    assert marcus["last_contact"] and marcus["days_since_contact"] == 16 + 21

@@ -14,7 +14,8 @@ from pathlib import Path
 
 from nf_core.checks import flags_for, run_checks
 from nf_core.goals import parse_goals
-from nf_core.issues import BlockingError
+from nf_core.issues import BlockingError, Issue
+from nf_core.sheet import SheetError, convert_dates
 from nf_core.roster import read_roster
 from nf_core.workspace import (Workspace, ensure_workspace, file_date, fingerprint, load_history, nf_home,
                                pick_roster, staleness_issues, week_of)
@@ -44,13 +45,19 @@ def main(argv=None) -> int:
                                  "goals.md there; check they're still right.", 3, work_dir=str(ws.work))
         goals = parse_goals(ws.goals_path.read_text(encoding="utf-8"))
         roster_path, pick_issues = pick_roster(ws, Path(args.roster) if args.roster else None)
-        contacts, cell_issues = read_roster(roster_path)
-        sha = fingerprint(roster_path)
-        stale = staleness_issues(roster_path, sha, load_history(ws), today)
+        sha, as_of = fingerprint(roster_path), file_date(roster_path)  # before the dates column changes the file
+        added_dates = False
+        try:
+            added_dates = convert_dates(roster_path, as_of)
+        except SheetError as e:
+            pick_issues.append(Issue("DATES_NOT_ADDED", "info", e.message + " Day counts were used as they are."))
+        contacts, cell_issues = read_roster(roster_path, today)
+        exact = any(c.last_contact for c in contacts) and not added_dates  # first dates come from the file date
+        stale = staleness_issues(roster_path, sha, load_history(ws), today, as_of=as_of, exact_dates=exact)
         warnings = stale + pick_issues + cell_issues + run_checks(contacts, goals)
         roster = {
             "source": {"path": str(roster_path), "file_name": roster_path.name, "sha256": sha,
-                       "as_of": file_date(roster_path).isoformat(), "week_of": week_of(today).isoformat()},
+                       "as_of": (today if exact else as_of).isoformat(), "week_of": week_of(today).isoformat()},
             "goals": [g.to_dict() for g in goals],
             "contacts": [{**c.to_dict(), "text": c.text(), "flags": flags_for(c)} for c in contacts],
         }

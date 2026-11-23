@@ -69,7 +69,7 @@ def test_read_sheet_rows(make_roster):
     assert sheet["file"] == path.name and len(sheet["rows"]) == 2
     diana = sheet["rows"][1]
     assert diana == {"row_id": 3, "name": "Diana Chen", "role": "CTO", "company": "Stripe", "days": 28, "strength": 4,
-                     "tags": "cto-search, mentor", "done": "Nov 25, 2026", "comments": "Intro to two candidates."}
+                     "tags": "cto-search, mentor", "last_contact": "", "done": "Nov 25, 2026", "comments": "Intro to two candidates."}
     assert read_sheet(make_roster(TWO_ROWS, name="fresh"))["rows"][0]["done"] == ""
 
 
@@ -85,3 +85,34 @@ def test_sheet_cli_set_and_read(tmp_path, make_roster):
     out = run("read")
     assert out["ok"] is True and out["rows"][1]["done"] != ""
     assert run("set", "--name", "Nobody", "--company", "X", "--done", "yes")["ok"] is False
+
+
+# ---- dates instead of day counts ----
+from nf_core.sheet import convert_dates  # noqa: E402
+
+
+def test_convert_dates_adds_column_and_formulas(make_roster):
+    path = make_roster(TWO_ROWS)
+    assert convert_dates(path, date(2026, 11, 22)) is True
+    ws = openpyxl.load_workbook(path).worksheets[0]
+    head = [c.value for c in ws[1]]
+    col = head.index("Last Contact Date") + 1
+    assert ws.cell(row=2, column=col).value.date() == date(2026, 11, 6)        # Marcus: 16 days before Nov 22
+    assert str(ws.cell(row=2, column=head.index("Days Since Last Contact") + 1).value).startswith("=TODAY()-")
+    marcus = read_roster(path, today=date(2026, 11, 30))[0][0]
+    assert marcus.days_since_contact == 24 and marcus.last_contact == "2026-11-06"
+    assert convert_dates(path, date(2026, 11, 22)) is False                    # only once
+
+
+def test_convert_dates_csv(make_roster):
+    path = make_roster(TWO_ROWS, fmt="csv")
+    assert convert_dates(path, date(2026, 11, 22)) is True
+    diana = read_roster(path, today=date(2026, 11, 22))[0][1]
+    assert diana.last_contact == "2026-10-25" and diana.days_since_contact == 28
+
+
+def test_convert_dates_refuses_when_open_in_excel(make_roster):
+    path = make_roster(TWO_ROWS)
+    (path.parent / f"~${path.name}").write_bytes(b"lock")
+    with pytest.raises(SheetError):
+        convert_dates(path, date(2026, 11, 22))

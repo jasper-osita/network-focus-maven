@@ -24,8 +24,13 @@ TWO_ROWS = [
 
 
 @pytest.fixture
-def sample_xlsx() -> Path:
-    return SAMPLE
+def sample_xlsx(tmp_path) -> Path:
+    """A copy: the loader adds a Last Contact Date column to the roster it reads, so never hand it the repo's file."""
+    import shutil
+    copy = tmp_path / "sample" / SAMPLE.name
+    copy.parent.mkdir()
+    shutil.copy2(SAMPLE, copy)
+    return copy
 
 
 @pytest.fixture
